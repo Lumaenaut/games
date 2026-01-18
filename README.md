@@ -1,1 +1,1 @@
-# mental-math
+# games
