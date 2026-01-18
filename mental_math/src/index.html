@@ -1,0 +1,60 @@
+
+<!--
+
+Functionality:
+
+    - Submit answer when the correct number is typed
+    - Difficulty level. (Use same as the app)
+
+
+Modes:
+
+    - Learning (Display steps for getting to an answer depending on the
+        different best practices)
+    - Mental
+
+
+Future content:
+
+    - Time tracker
+
+
+To do:
+
+    Create a layout to align the numbers, operand and answer field
+        Align the operand to the left
+    Remove the button
+
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mental math</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Mental Math</h1>
+    </header>
+    <main>
+        <div id="number-one-div"></div>
+        <div id="operand-div">-</div>
+        <div id="number-two-div"></div>
+        <div>
+            <input id="result-input" type="text" inputmode="numeric"
+                pattern="[0-9]*"><br />
+            <!--
+            inputmode="numeric" - hint to browser, mainly for mobile devices to
+                show a keypad instead of a full keyboard.
+            pattern="[0-9]*" - only digits, "*" zero or more characters
+            -->
+            <button id="btn-random">Random</button>
+        </div>
+    </main>
+    <footer></footer>
+    <script src="script.js"></script>
+</body>
+</html>
