@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SECOND RUNNER</title>
+  <link rel="stylesheet" href="main-menu.css">
+</head>
+<body>
+  <div class="header">
+    <div class="title-section">
+      <h1>Second Runner</h1>
+    </div>
+    <div class="clocks" id="clocks-container">
+      <!-- Timer clock - will be hidden for infinite mode -->
+      <div class="clock" id="timer-clock">
+        <span class="clock-label">left</span>
+        <span id="timer-display" class="timer-highlight">00:00</span>
+      </div>
+      <!-- Session clock - always visible -->
+      <div class="clock">
+        <span class="clock-label">session</span>
+        <span id="session-display">00:00</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="game-buttons">
+    <button class="game-button" id="game-pinball">
+      <span class="game-icon">🕹️</span>
+      <span class="game-title">pinball</span>
+      <span class="game-description">flip & score</span>
+    </button>
+    
+    <button class="game-button" id="game-spaceinvaders">
+      <span class="game-icon">👾</span>
+      <span class="game-title">space invaders</span>
+      <span class="game-description">defend earth</span>
+    </button>
+    
+    <button class="game-button" id="game-mentalmath">
+      <span class="game-icon">🧮</span>
+      <span class="game-title">mental math</span>
+      <span class="game-description">quick calc</span>
+    </button>
+  </div>
+
+  <script src="main-menu.js"></script>
+</body>
+</html>

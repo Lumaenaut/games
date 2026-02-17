@@ -1,0 +1,22 @@
+Icons
+
+  Design the extension icon compatible with both themes
+  
+
+Assets
+
+  asdf
+
+
+Features
+
+  Timers
+
+    When session time is up add a 5 minutes more button
+
+
+Games
+
+  Pinball
+  Space Invaders
+  Mental math
