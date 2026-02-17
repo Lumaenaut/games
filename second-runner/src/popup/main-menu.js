@@ -19,6 +19,9 @@ function updateTimerDisplay() {
     // Set different color if the count down has already reached zero
     if (countdownFinished) {
       timerDisplay.style.color = '#e67e22'; // orange for overtime
+    } else {
+      // Reset color when not finished
+      timerDisplay.style.color = '#2c3e50'; // back to default
     }
   }
 }
@@ -86,53 +89,77 @@ document.addEventListener('DOMContentLoaded', () => {
   chrome.storage.local.get(['selectedTime', 'isInfinite', 'startTime'], (result) => {
     
     // 1- Set clocks according to the user's time selection
-    // 2- If selection was infinate hide the timer, else update timer according to the minutes selected
+    // 2- If selection was infinite hide the timer, else update timer according to the minutes selected
     // 3- Calculate the initial session time and update the session clock
     // 4- Start the clocks
 
     isInfinite = result.isInfinite || false;
     
-    // Hide timer clock if infinite mode
-    if (isInfinite) {
-      document.getElementById('timer-clock').style.display = 'none';
-    } else {
+    // Check if timer-clock element exists before hiding
+    const timerClock = document.getElementById('timer-clock');
+    if (timerClock) {
+      // Hide timer clock if infinite mode
+      timerClock.style.display = isInfinite ? 'none' : 'flex';
+    }
+    
+    if (!isInfinite) {
       // Set countdown time from selected minutes
       const selectedMinutes = result.selectedTime;
-      countdownTime = selectedMinutes * 60;
+      // Validate selectedMinutes
+      if (selectedMinutes && !isNaN(selectedMinutes)) {
+        countdownTime = selectedMinutes * 60;
+      } else {
+        console.error('Invalid selected time:', selectedMinutes);
+        countdownTime = 0;
+      }
       updateTimerDisplay();
     }
     
     // Calculate initial session time
+    // Safely calculate elapsed seconds
     if (result.startTime) {
       const elapsedSeconds = Math.floor((Date.now() - result.startTime) / 1000);
-      sessionTime = elapsedSeconds;
-      updateSessionDisplay();
+      sessionTime = Math.max(0, elapsedSeconds);
+    } else {
+      sessionTime = 0;
     }
+    updateSessionDisplay();
     
     // Start both clocks
     startClocks();
   });
   
-  // Add game button listeners
-  document.getElementById('game-pinball').addEventListener('click', () => {
-    console.log('Pinball game selected');
-    // Future: navigate to pinball game
-  });
+  // Add null checks for game buttons
+  const pinballBtn = document.getElementById('game-pinball');
+  if (pinballBtn) {
+    pinballBtn.addEventListener('click', () => {
+      console.log('Pinball game selected');
+      // Future: navigate to pinball game
+    });
+  }
   
-  document.getElementById('game-spaceinvaders').addEventListener('click', () => {
-    console.log('Space Invaders selected');
-    // Future: navigate to space invaders
-  });
+  const spaceInvadersBtn = document.getElementById('game-spaceinvaders');
+  if (spaceInvadersBtn) {
+    spaceInvadersBtn.addEventListener('click', () => {
+      console.log('Space Invaders selected');
+      // Future: navigate to space invaders
+    });
+  }
   
-  document.getElementById('game-mentalmath').addEventListener('click', () => {
-    console.log('Mental Math selected');
-    // Future: navigate to mental math
-  });
+  const mentalMathBtn = document.getElementById('game-mentalmath');
+  if (mentalMathBtn) {
+    mentalMathBtn.addEventListener('click', () => {
+      console.log('Mental Math selected');
+      // Future: navigate to mental math
+    });
+  }
 });
 
 // Clean up intervals when popup closes
 window.addEventListener('unload', () => {
   if (window.clockInterval) {
     clearInterval(window.clockInterval);
+    // Also clear the reference
+    window.clockInterval = null;
   }
 });

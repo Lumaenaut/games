@@ -1,12 +1,4 @@
-Icons
-
-  Design the extension icon compatible with both themes
-  
-
-Assets
-
-  asdf
-
+Code
 
 Features
 
@@ -18,5 +10,26 @@ Features
 Games
 
   Pinball
+
+    Tellstar tennis
+    " " hockey
+    " " handball
+
+    easy, medium, pro
+
+    
   Space Invaders
   Mental math
+
+###############################################################################
+
+Design
+
+  Icons
+
+    Design the extension icon compatible with both themes
+    
+
+  Assets
+
+    asdf

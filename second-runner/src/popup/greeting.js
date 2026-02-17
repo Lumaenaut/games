@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // 1- Get the text of the button
       // 2- Get the amount of time selected
-      // 3- Store tiem data as object and got to main menu if data was successfully stored
+      // 3- Store time data as object and go to main menu if data was successfully stored
       
       // Assign buttonText the text content of the current button / target
       const buttonText = e.target.textContent;
@@ -22,7 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (buttonText.includes('min')) {
         // Extract number from the button's text content
-        selectedTime = parseInt(buttonText);
+        const minutes = parseInt(buttonText);
+        // Validate that minutes is a positive number
+        if (!isNaN(minutes) && minutes > 0) {
+          selectedTime = minutes;
+        } else {
+          console.error('Invalid time value:', buttonText);
+          return; // Don't proceed with invalid time
+        }
       } else if (buttonText === '∞') {
         isInfinite = true;
       }
