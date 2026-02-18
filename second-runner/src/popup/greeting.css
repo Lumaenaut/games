@@ -28,16 +28,20 @@ p {
   margin-top: 4px;
 }
 
-.time-button {
+.start-button {
   font-size: 1rem;
-  padding: 6px 12px;
-  min-width: 64px;
+  padding: 10px 16px;
+  min-width: 96px;
   text-align: center;
   font-family: inherit;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.infinity-button {
-  font-size: 1rem;
-  padding: 6px 12px;
-  font-family: inherit;
+.start-button:hover {
+  background: #f5f5f5;
+  border-color: #999;
 }

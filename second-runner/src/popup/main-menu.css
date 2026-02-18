@@ -31,34 +31,6 @@ h1 {
   font-weight: 600;
 }
 
-.clocks {
-  display: flex;
-  gap: 16px;
-  font-family: monospace;
-  font-size: 1.2rem;
-  background: #f0f0f0;
-  padding: 6px 12px;
-  border-radius: 20px;
-}
-
-.clock {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.clock-label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  opacity: 0.6;
-  font-family: system-ui;
-}
-
-.timer-highlight {
-  font-weight: 600;
-  color: #2c3e50;
-}
-
 .game-buttons {
   display: flex;
   flex-direction: column;

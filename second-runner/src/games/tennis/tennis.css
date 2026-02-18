@@ -20,6 +20,8 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .scores {
@@ -98,4 +100,25 @@ body {
 
 .start-button:active {
   transform: translateY(0);
+}
+
+/* IMPROVE: Responsive adjustments for smaller windows */
+@media (max-width: 700px) {
+  body {
+    min-width: auto;
+    padding: 10px;
+  }
+  
+  .game-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .scores {
+    justify-content: center;
+  }
+  
+  .back-button {
+    width: 100%;
+  }
 }

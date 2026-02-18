@@ -4,8 +4,9 @@ Code
 
 Features
 
-  Timers
-
+  Greeting page: It should print the message "press space or click to start"
+  It shouldn't have a button. The user should be able to click anywhere for the
+  main menu to run
 
 
 Games
@@ -14,9 +15,8 @@ Games
 
     Telstar tennis
 
-      change gameplay from buttons to mouse
-      The back button should return to main menu
-      Display the clocks in the header
+      The player should be able to start the game with space. Get rid of the
+      "start game" button at the bottom.
 
   " " hockey
   " " handball
@@ -47,7 +47,3 @@ Design
 ###############################################################################
 Future updates
 ###############################################################################
-
-Timers
-
-    When session time is up add a 5 minutes more button
