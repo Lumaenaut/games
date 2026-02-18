@@ -4,25 +4,12 @@ Code
 
 Features
 
-  Greeting page: It should print the message "click anywhere to start"
-  It shouldn't have a button. The user should be able to click anywhere for the
-  main menu to run
+  
 
 
 Games
 
-  Pinball
-
-    " " hockey
-    " " handball
-
-    Difficulties
-
-      Difficulty setting should increase as playtime goes on
-
-    
-  Space Invaders
-  Mental math
+  Set handball as a 5 point based game like the other two.
 
 
 ###############################################################################
