@@ -1,29 +1,38 @@
+###############################################################################
 Code
+###############################################################################
 
 Features
 
   Timers
 
-    When session time is up add a 5 minutes more button
 
 
 Games
 
   Pinball
 
-    Tellstar tennis
-    " " hockey
-    " " handball
+    Telstar tennis
 
-    easy, medium, pro
+      change gameplay from buttons to mouse
+      The back button should return to main menu
+      Display the clocks in the header
+
+  " " hockey
+  " " handball
+
+    Difficulties
+
+      Difficulty setting should increase as playtime goes on
 
     
   Space Invaders
   Mental math
 
-###############################################################################
 
+###############################################################################
 Design
+###############################################################################
 
   Icons
 
@@ -33,3 +42,12 @@ Design
   Assets
 
     asdf
+
+
+###############################################################################
+Future updates
+###############################################################################
+
+Timers
+
+    When session time is up add a 5 minutes more button

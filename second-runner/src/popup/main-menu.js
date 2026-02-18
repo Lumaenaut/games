@@ -4,7 +4,6 @@ let isInfinite = false;
 let countdownFinished = false;
 
 function updateTimerDisplay() {
-
   // 1- Get timerDisplay element
   // 2- Set the minutes and seconds variables
   // 3- Set timerDisplay text
@@ -12,22 +11,26 @@ function updateTimerDisplay() {
   
   const timerDisplay = document.getElementById('timer-display');
   if (timerDisplay) {
-    const mins = Math.floor(Math.abs(countdownTime) / 60);
-    const secs = Math.abs(countdownTime) % 60;
-    timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    
-    // Set different color if the count down has already reached zero
-    if (countdownFinished) {
-      timerDisplay.style.color = '#e67e22'; // orange for overtime
+    if (isInfinite) {
+      timerDisplay.textContent = '--:--';
+      timerDisplay.style.color = '#2c3e50'; // Default color
     } else {
-      // Reset color when not finished
-      timerDisplay.style.color = '#2c3e50'; // back to default
+      const mins = Math.floor(Math.abs(countdownTime) / 60);
+      const secs = Math.abs(countdownTime) % 60;
+      timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      
+      // Set different color if the count down has already reached zero
+      if (countdownFinished) {
+        timerDisplay.style.color = '#e67e22'; // orange for overtime
+      } else {
+        // Reset color when not finished
+        timerDisplay.style.color = '#2c3e50'; // back to default
+      }
     }
   }
 }
 
 function updateSessionDisplay() {
-
   // 1- Get sessionDisplay element
   // 2- Set the minutes and seconds variables
   // 3- Set timerDisplay text
@@ -41,41 +44,36 @@ function updateSessionDisplay() {
 }
 
 function startClocks() {
-
   // 1- Update displays every second
-  // 2- Store interval
+  // 2- Store interval to handle later
 
   // Update both clocks every second
   const clockInterval = setInterval(() => {
-
-    // 1- Add one second to the session time
-    // 2- update the session clock
-    // 3- If infinite button was selected and countdown isn't finished, update
-    //    countdown. If countdown is less or reaches zero, set countdownFinished
-    //    to true and set countdownTime to zero to set up the clock to count up.
-    //    Update the the timer
-    // 4- If the selection wasn't infinite and countdown is finished, let
-    //    countdownTime start counting up and update the timer
-
     // Update session time (always counting up)
     sessionTime++;
     updateSessionDisplay();
     
-    // Update countdown if not infinite and not finished
-    if (!isInfinite && !countdownFinished) {
-      countdownTime--;
-      
-      if (countdownTime <= 0) {
-        countdownFinished = true;
-        // When countdown reaches 0, start counting up from 0
-        countdownTime = 0;
+    if (isInfinite) {
+      // In infinite mode, timer stays as --:--, no need to update
+      // Just make sure it's showing --:-- (already handled by updateTimerDisplay)
+      updateTimerDisplay();
+    } else {
+      // Update countdown if not infinite and not finished
+      if (!countdownFinished) {
+        countdownTime--;
+        
+        if (countdownTime <= 0) {
+          countdownFinished = true;
+          // When countdown reaches 0, start counting up from 0
+          countdownTime = 0;
+        }
+        
+        updateTimerDisplay();
+      } else if (countdownFinished) {
+        // After countdown finishes, count up
+        countdownTime++;
+        updateTimerDisplay();
       }
-      
-      updateTimerDisplay();
-    } else if (!isInfinite && countdownFinished) {
-      // After countdown finishes, count up
-      countdownTime++;
-      updateTimerDisplay();
     }
   }, 1000);
   
@@ -87,20 +85,12 @@ function startClocks() {
 document.addEventListener('DOMContentLoaded', () => {
   // Get stored time data
   chrome.storage.local.get(['selectedTime', 'isInfinite', 'startTime'], (result) => {
-    
     // 1- Set clocks according to the user's time selection
-    // 2- If selection was infinite hide the timer, else update timer according to the minutes selected
+    // 2- If selection isn't infinate update timer according to the minutes selected
     // 3- Calculate the initial session time and update the session clock
     // 4- Start the clocks
 
     isInfinite = result.isInfinite || false;
-    
-    // Check if timer-clock element exists before hiding
-    const timerClock = document.getElementById('timer-clock');
-    if (timerClock) {
-      // Hide timer clock if infinite mode
-      timerClock.style.display = isInfinite ? 'none' : 'flex';
-    }
     
     if (!isInfinite) {
       // Set countdown time from selected minutes
@@ -113,6 +103,10 @@ document.addEventListener('DOMContentLoaded', () => {
         countdownTime = 0;
       }
       updateTimerDisplay();
+    } else {
+      // For infinite mode, set a flag but don't hide the timer
+      countdownTime = 0; // Initialize to 0
+      updateTimerDisplay(); // This will show --:-- from the updated function
     }
     
     // Calculate initial session time
@@ -130,27 +124,28 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   // Add null checks for game buttons
-  const pinballBtn = document.getElementById('game-pinball');
-  if (pinballBtn) {
-    pinballBtn.addEventListener('click', () => {
-      console.log('Pinball game selected');
-      // Future: navigate to pinball game
+  const tennisBtn = document.getElementById('game-tennis');
+  if (tennisBtn) {
+    tennisBtn.addEventListener('click', () => {
+      window.location.href = '../games/tennis/tennis.html';
     });
   }
   
-  const spaceInvadersBtn = document.getElementById('game-spaceinvaders');
-  if (spaceInvadersBtn) {
-    spaceInvadersBtn.addEventListener('click', () => {
-      console.log('Space Invaders selected');
-      // Future: navigate to space invaders
+  const hockeyBtn = document.getElementById('game-hockey');
+  if (hockeyBtn) {
+    hockeyBtn.addEventListener('click', () => {
+      console.log('Hockey selected');
+      // Future: navigate to hockey game
+      // window.location.href = '../games/hockey/hockey.html';
     });
   }
   
-  const mentalMathBtn = document.getElementById('game-mentalmath');
-  if (mentalMathBtn) {
-    mentalMathBtn.addEventListener('click', () => {
-      console.log('Mental Math selected');
-      // Future: navigate to mental math
+  const handballBtn = document.getElementById('game-handball');
+  if (handballBtn) {
+    handballBtn.addEventListener('click', () => {
+      console.log('Handball selected');
+      // Future: navigate to handball game
+      // window.location.href = '../games/handball/handball.html';
     });
   }
 });
