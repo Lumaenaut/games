@@ -1,0 +1,104 @@
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #f0f0f0;
+  display: flex;
+  justify-content: center;
+  min-width: 700px;
+  overflow-x: hidden;
+}
+
+.game-container {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.scores {
+  display: flex;
+  gap: 24px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.score {
+  background: #f5f5f5;
+  padding: 6px 12px;
+  border-radius: 16px;
+}
+
+#player-score, #computer-score {
+  color: #2c3e50;
+  margin-left: 8px;
+}
+
+.back-button {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background: #f5f5f5;
+  border-color: #999;
+}
+
+.game-area {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+#game-canvas {
+  border: 3px solid #333;
+  background: #000;
+  display: block;
+  cursor: none;
+}
+
+.game-controls {
+  text-align: center;
+}
+
+.game-controls p {
+  margin: 0 0 12px 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Responsive adjustments for smaller windows */
+@media (max-width: 700px) {
+  body {
+    min-width: auto;
+    padding: 10px;
+  }
+  
+  .game-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .scores {
+    justify-content: center;
+  }
+  
+  .back-button {
+    width: 100%;
+  }
+}

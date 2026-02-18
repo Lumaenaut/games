@@ -13,13 +13,8 @@ Games
 
   Pinball
 
-    Telstar tennis
-
-      The player should be able to start the game with space. Get rid of the
-      "start game" button at the bottom.
-
-  " " hockey
-  " " handball
+    " " hockey
+    " " handball
 
     Difficulties
 

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SR . Handball</title>
+  <link rel="stylesheet" href="handball.css">
+</head>
+<body>
+  <div class="game-container">
+    <div class="game-header">
+      <div class="scores">
+        <div class="score">Score: <span id="player-score">0</span></div>
+      </div>
+      <button class="back-button" id="back-button">← Back to Menu</button>
+    </div>
+
+    <div class="game-area">
+      <canvas id="game-canvas" width="400" height="400"></canvas>
+    </div>
+
+    <div class="game-controls">
+      <p>Move your mouse up and down to control the paddle</p>
+    </div>
+  </div>
+
+  <script src="handball.js"></script>
+</body>
+</html>
