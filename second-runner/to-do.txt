@@ -4,7 +4,7 @@ Code
 
 Features
 
-  Greeting page: It should print the message "press space or click to start"
+  Greeting page: It should print the message "click anywhere to start"
   It shouldn't have a button. The user should be able to click anywhere for the
   main menu to run
 

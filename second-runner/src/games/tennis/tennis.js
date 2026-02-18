@@ -35,10 +35,6 @@ let ball = {
   baseSpeed: BASE_BALL_SPEED
 };
 
-// Keyboard controls (keep for pausing)
-let keys = {
-  Space: false
-};
 
 // Mouse tracking
 let mouseY = canvas.height / 2 - 40;
@@ -76,7 +72,7 @@ function resetForNextMatch() {
   ball.dx = (Math.random() > 0.5 ? BASE_BALL_SPEED : -BASE_BALL_SPEED);
   ball.dy = (Math.random() * 4) - 2;
   
-  // Pause game until space is pressed
+  // Pause game until user clicks
   gameRunning = false;
   gamePaused = true;
 }
@@ -101,11 +97,11 @@ function draw() {
   // Draw paddles
   ctx.fillStyle = '#fff';
   
-  // Player paddle (right side) - use mouseY instead of playerY
-  ctx.fillRect(canvas.width - PADDLE_WIDTH - 10, mouseY, PADDLE_WIDTH, PADDLE_HEIGHT);
+  // Player paddle (left side) - use mouseY instead of playerY
+  ctx.fillRect(10, mouseY, PADDLE_WIDTH, PADDLE_HEIGHT);
   
-  // Computer paddle (left side)
-  ctx.fillRect(10, computerY, PADDLE_WIDTH, PADDLE_HEIGHT);
+  // Computer paddle (right side)
+  ctx.fillRect(canvas.width - PADDLE_WIDTH - 10, computerY, PADDLE_WIDTH, PADDLE_HEIGHT);
   
   // Draw ball
   ctx.beginPath();
@@ -127,11 +123,20 @@ function draw() {
       const winnerText = playerScore >= winningScore ? 'PLAYER WINS!' : 'COMPUTER WINS!';
       ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 30);
       ctx.font = '16px system-ui, sans-serif';
-      ctx.fillText('Press SPACE for next match', canvas.width / 2, canvas.height / 2 + 10);
+      ctx.fillText('Click for next match', canvas.width / 2, canvas.height / 2 + 10);
     } else {
       // Point ended
-      ctx.fillText('PRESS SPACE TO CONTINUE', canvas.width / 2, canvas.height / 2);
+      ctx.fillText('CLICK TO CONTINUE', canvas.width / 2, canvas.height / 2);
     }
+  } else if (!gameRunning && !gamePaused) {
+    // Draw start message if game hasn't started
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('CLICK TO START', canvas.width / 2, canvas.height / 2);
   }
   
   // Draw rally counter for difficulty feedback
@@ -193,9 +198,9 @@ function update() {
   }
   
   // Ball collision with paddles
-  // Player paddle (right side) - use playerY but it's now synced with mouseY
-  if (ball.x + ball.radius > canvas.width - PADDLE_WIDTH - 10 && 
-      ball.x - ball.radius < canvas.width - 10 &&
+  // Player paddle (left side) - use playerY but it's now synced with mouseY
+  if (ball.x - ball.radius < 10 + PADDLE_WIDTH && 
+      ball.x + ball.radius > 10 &&
       ball.y > playerY && 
       ball.y < playerY + PADDLE_HEIGHT) {
     
@@ -215,9 +220,9 @@ function update() {
     updateDifficulty();
   }
   
-  // Computer paddle (left side)
-  if (ball.x - ball.radius < 10 + PADDLE_WIDTH && 
-      ball.x + ball.radius > 10 &&
+  // Computer paddle (right side)
+  if (ball.x + ball.radius > canvas.width - PADDLE_WIDTH - 10 && 
+      ball.x - ball.radius < canvas.width - 10 &&
       ball.y > computerY && 
       ball.y < computerY + PADDLE_HEIGHT) {
     
@@ -237,14 +242,14 @@ function update() {
   
   // Check for scoring
   if (ball.x - ball.radius < 0) {
-    // Computer missed, player scores
-    playerScore++;
+    // Player missed, computer scores
+    computerScore++;
     updateScore();
     checkWinCondition();
     if (!gamePaused) resetForNextMatch();
   } else if (ball.x + ball.radius > canvas.width) {
-    // Player missed, computer scores
-    computerScore++;
+    // Computer missed, player scores
+    playerScore++;
     updateScore();
     checkWinCondition();
     if (!gamePaused) resetForNextMatch();
@@ -266,9 +271,9 @@ function resetBall(scorer) {
   
   // Ball goes toward the scorer
   if (scorer === 'player') {
-    ball.dx = BASE_BALL_SPEED; // Toward computer
+    ball.dx = -BASE_BALL_SPEED; // Toward computer (right side)
   } else {
-    ball.dx = -BASE_BALL_SPEED; // Toward player
+    ball.dx = BASE_BALL_SPEED; // Toward player (left side)
   }
   
   ball.dy = (Math.random() * 4) - 2;
@@ -312,32 +317,22 @@ canvas.addEventListener('mouseleave', () => {
   canvas.style.cursor = 'default'; // Show cursor when leaving canvas
 });
 
-// Keyboard events (now only for space)
-document.addEventListener('keydown', (e) => {
-  if (e.code === 'Space') {
-    e.preventDefault(); // Prevent page scrolling
+// Function to start or continue the game
+function startOrContinueGame() {
+  if (gamePaused) {
+    gamePaused = false;
     
-    // Handle space for continuing match
-    if (gamePaused) {
-      gamePaused = false;
-      
-      if (playerScore >= winningScore || computerScore >= winningScore) {
-        // Match ended, reset scores for new match
-        playerScore = 0;
-        computerScore = 0;
-        updateScore();
-        init();
-      }
-      
-      gameRunning = true;
+    if (playerScore >= winningScore || computerScore >= winningScore) {
+      // Match ended, reset scores for new match
+      playerScore = 0;
+      computerScore = 0;
+      updateScore();
+      init();
     }
-  }
-});
-
-// Start button
-document.getElementById('start-button').addEventListener('click', () => {
-  if (!gameRunning && !gamePaused) {
-    // Reset scores if starting fresh
+    
+    gameRunning = true;
+  } else if (!gameRunning && !gamePaused) {
+    // Starting fresh
     if (playerScore >= winningScore || computerScore >= winningScore) {
       playerScore = 0;
       computerScore = 0;
@@ -347,6 +342,16 @@ document.getElementById('start-button').addEventListener('click', () => {
     gamePaused = false;
     init();
   }
+}
+
+// Click anywhere to start/continue (except on back button)
+document.addEventListener('click', (e) => {
+  // Don't start game if clicking the back button
+  if (e.target.closest('.back-button')) {
+    return;
+  }
+  
+  startOrContinueGame();
 });
 
 // Back button
