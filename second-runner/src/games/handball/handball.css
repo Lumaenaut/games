@@ -5,7 +5,7 @@ body {
   background: #f0f0f0;
   display: flex;
   justify-content: center;
-  min-width: 500px;
+  min-width: 700px;
   overflow-x: hidden;
 }
 
@@ -38,7 +38,7 @@ body {
   border-radius: 16px;
 }
 
-#player-score {
+#player-score, #computer-score {
   color: #2c3e50;
   margin-left: 8px;
 }
@@ -67,7 +67,7 @@ body {
 
 #game-canvas {
   border: 3px solid #333;
-  background: #000;
+  background: #eaeaea;
   display: block;
   cursor: none;
 }
@@ -83,7 +83,7 @@ body {
 }
 
 /* Responsive adjustments for smaller windows */
-@media (max-width: 500px) {
+@media (max-width: 700px) {
   body {
     min-width: auto;
     padding: 10px;

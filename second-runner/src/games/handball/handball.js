@@ -7,6 +7,7 @@ let gameRunning = false;
 let gamePaused = false;
 let animationFrame;
 let playerScore = 0;
+let computerScore = 0;
 
 // Rally counter for difficulty scaling
 let rallyCount = 0;
@@ -14,12 +15,19 @@ const BASE_BALL_SPEED = 5;
 const MAX_SPEED_MULTIPLIER = 2.5; // Max 2.5x speed
 let currentSpeedMultiplier = 1;
 
-// Paddle position (y coordinate)
+// Paddle positions (y coordinate)
 let playerY = canvas.height / 2 - 40;
+let computerY = canvas.height / 2 - 40;
 
 // Paddle constants
 const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 80;
+
+// Both paddles are on the left; "forwardness" indicates whose turn it is
+const BACK_X = 10;
+const FORWARD_X = 28;
+let turn = 'player'; // 'player' | 'computer'
+let swapPending = false;
 
 // Ball
 let ball = {
@@ -47,13 +55,12 @@ function init() {
   currentSpeedMultiplier = 1;
   ball.baseSpeed = BASE_BALL_SPEED;
   
-  // Randomize initial direction (away from left wall, slight vertical variation)
+  // Start by sending the ball away from the left wall
   ball.dx = Math.abs(BASE_BALL_SPEED); // Always moving right initially
   ball.dy = (Math.random() * 4) - 2; // between -2 and 2
 }
 
-// Reset for next round
-function resetForNextRound() {
+function resetForNextRound(nextTurn) {
   ball.x = canvas.width / 2;
   ball.y = canvas.height / 2;
   
@@ -65,6 +72,9 @@ function resetForNextRound() {
   // Ball goes away from left wall
   ball.dx = Math.abs(BASE_BALL_SPEED);
   ball.dy = (Math.random() * 4) - 2;
+
+  turn = nextTurn;
+  swapPending = false;
   
   // Pause game until user clicks
   gameRunning = false;
@@ -74,11 +84,11 @@ function resetForNextRound() {
 // Draw everything
 function draw() {
   // Clear canvas
-  ctx.fillStyle = '#000';
+  ctx.fillStyle = '#eaeaea';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
   // Draw bounce zones (top, right, bottom walls)
-  ctx.strokeStyle = '#fff';
+  ctx.strokeStyle = '#333';
   ctx.lineWidth = 2;
   // Top wall
   ctx.strokeRect(0, 0, canvas.width, 5);
@@ -88,32 +98,37 @@ function draw() {
   ctx.strokeRect(0, canvas.height - 5, canvas.width, 5);
   ctx.lineWidth = 1;
   
-  // Draw paddle
-  ctx.fillStyle = '#fff';
-  // Player paddle (left side)
-  ctx.fillRect(10, playerY, PADDLE_WIDTH, PADDLE_HEIGHT);
+  const playerX = (turn === 'player' ? FORWARD_X : BACK_X);
+  const compX = (turn === 'computer' ? FORWARD_X : BACK_X);
+
+  // Draw paddles (both left side, different grey levels)
+  ctx.fillStyle = '#000'; // player: black
+  ctx.fillRect(playerX, playerY, PADDLE_WIDTH, PADDLE_HEIGHT);
+
+  ctx.fillStyle = '#777'; // computer: grayer
+  ctx.fillRect(compX, computerY, PADDLE_WIDTH, PADDLE_HEIGHT);
   
   // Draw ball
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#111';
   ctx.fill();
   
   // Draw pause message if game is paused
   if (gamePaused && !gameRunning) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillStyle = 'rgba(234, 234, 234, 0.85)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#111';
     ctx.font = 'bold 20px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('CLICK TO CONTINUE', canvas.width / 2, canvas.height / 2);
   } else if (!gameRunning && !gamePaused) {
     // Draw start message if game hasn't started
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillStyle = 'rgba(234, 234, 234, 0.85)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#111';
     ctx.font = 'bold 20px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('CLICK TO START', canvas.width / 2, canvas.height / 2);
@@ -121,7 +136,7 @@ function draw() {
   
   // Draw rally counter for difficulty feedback
   if (gameRunning && rallyCount > 0) {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
     ctx.font = '12px monospace';
     ctx.textAlign = 'right';
     ctx.fillText(`Rally: ${rallyCount} x${currentSpeedMultiplier.toFixed(1)}`, canvas.width - 20, 30);
@@ -148,15 +163,27 @@ function updateDifficulty() {
 
 // Update game logic
 function update() {
-  // Update player paddle position based on mouse
-  // Constrain to canvas bounds (allow movement even when game not running)
+  // Update paddle positions (allow movement even when game not running)
   playerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseY));
+
+  // Simple computer AI: tracks the ball during play, recenters otherwise
+  const computerTargetY = gameRunning ? (ball.y - PADDLE_HEIGHT / 2) : (canvas.height / 2 - PADDLE_HEIGHT / 2);
+  const computerSpeed = gameRunning ? 4 : 2;
+  if (computerY < computerTargetY) computerY += computerSpeed;
+  if (computerY > computerTargetY) computerY -= computerSpeed;
+  computerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, computerY));
   
   if (!gameRunning) return;
   
   // Move ball
   ball.x += ball.dx;
   ball.y += ball.dy;
+
+  // After a hit, swap forwardness when the ball reaches mid-court going right
+  if (swapPending && ball.dx > 0 && ball.x >= canvas.width / 2) {
+    turn = (turn === 'player' ? 'computer' : 'player');
+    swapPending = false;
+  }
   
   // Ball collision with top wall (bounces)
   if (ball.y - ball.radius < 0) {
@@ -176,14 +203,20 @@ function update() {
     ball.x = canvas.width - ball.radius;
   }
   
-  // Ball collision with paddle (left side)
-  if (ball.x - ball.radius < 10 + PADDLE_WIDTH && 
-      ball.x + ball.radius > 10 &&
-      ball.y > playerY && 
-      ball.y < playerY + PADDLE_HEIGHT) {
+  const playerX = (turn === 'player' ? FORWARD_X : BACK_X);
+  const compX = (turn === 'computer' ? FORWARD_X : BACK_X);
+  const activeX = (turn === 'player' ? playerX : compX);
+  const activeY = (turn === 'player' ? playerY : computerY);
+
+  // Active paddle collision (only the forward/turn paddle can deflect)
+  if (ball.dx < 0 &&
+      ball.x - ball.radius < activeX + PADDLE_WIDTH && 
+      ball.x + ball.radius > activeX &&
+      ball.y > activeY && 
+      ball.y < activeY + PADDLE_HEIGHT) {
     
     // Calculate bounce angle based on where ball hits paddle
-    const relativeIntersectY = (ball.y - (playerY + PADDLE_HEIGHT/2)) / (PADDLE_HEIGHT/2);
+    const relativeIntersectY = (ball.y - (activeY + PADDLE_HEIGHT/2)) / (PADDLE_HEIGHT/2);
     const bounceAngle = relativeIntersectY * 0.8; // Max 80% angle
     
     ball.dx = Math.abs(ball.dx); // Always bounce away from left wall
@@ -194,26 +227,27 @@ function update() {
       ball.dy = ball.dy > 0 ? 1.5 : -1.5;
     }
     
-    // Increase score on successful hit
-    playerScore++;
-    updateScore();
-    
     // Increase difficulty on hit
     updateDifficulty();
+
+    // Swap will occur once the ball reaches mid-court
+    swapPending = true;
   }
   
-  // Check for game over (ball touches left wall)
+  // Point scored if ball touches left wall (active player missed)
   if (ball.x - ball.radius < 0) {
-    // Player missed - game over, reset
-    playerScore = 0;
+    const scorer = (turn === 'player') ? 'computer' : 'player';
+    if (scorer === 'player') playerScore++;
+    else computerScore++;
     updateScore();
-    resetForNextRound();
+    resetForNextRound(scorer);
   }
 }
 
 // Update score display
 function updateScore() {
   document.getElementById('player-score').textContent = playerScore;
+  document.getElementById('computer-score').textContent = computerScore;
 }
 
 // Game loop
@@ -251,9 +285,12 @@ function startOrContinueGame() {
   } else if (!gameRunning && !gamePaused) {
     // Starting fresh
     playerScore = 0;
+    computerScore = 0;
     updateScore();
     gameRunning = true;
     gamePaused = false;
+    turn = 'player';
+    swapPending = false;
     init();
   }
 }

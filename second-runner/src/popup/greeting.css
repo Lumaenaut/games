@@ -1,12 +1,13 @@
 body {
   margin: 0;
-  padding: 16px;
+  padding: 20px;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  width: 320px;
+  min-width: 700px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   cursor: pointer;
+  background: white;
 }
 
 h1 {
