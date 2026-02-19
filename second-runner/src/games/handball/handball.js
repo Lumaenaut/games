@@ -274,26 +274,6 @@ function gameLoop() {
   animationFrame = requestAnimationFrame(gameLoop);
 }
 
-// Mouse event listeners
-canvas.addEventListener('mousemove', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const scaleY = canvas.height / rect.height;
-  const mouseCanvasY = (e.clientY - rect.top) * scaleY;
-  
-  // Update mouseY position, constrained to paddle height
-  mouseY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseCanvasY - PADDLE_HEIGHT/2));
-});
-
-canvas.addEventListener('mouseenter', () => {
-  mouseInsideCanvas = true;
-  canvas.style.cursor = 'none'; // Hide cursor when over canvas
-});
-
-canvas.addEventListener('mouseleave', () => {
-  mouseInsideCanvas = false;
-  canvas.style.cursor = 'default'; // Show cursor when leaving canvas
-});
-
 // Function to start or continue the game
 function startOrContinueGame() {
   if (gamePaused) {
@@ -325,6 +305,13 @@ function startOrContinueGame() {
   }
 }
 
+// Clean up animation frame when leaving
+window.addEventListener('unload', () => {
+  if (animationFrame) {
+    cancelAnimationFrame(animationFrame);
+  }
+});
+
 // Click anywhere to start/continue (except on back button)
 document.addEventListener('click', (e) => {
   // Don't start game if clicking the back button
@@ -340,13 +327,30 @@ document.getElementById('back-button').addEventListener('click', () => {
   window.location.href = '../../popup/main-menu.html';
 });
 
+// Mouse event listeners
+canvas.addEventListener('mousemove', (e) => {
+  // Get info about size of canvas and it's position relative to the viewport
+  const rect = canvas.getBoundingClientRect();
+  // Because canvas is not the same size as the viewport, we need a factor to scale the y position
+  const scaleY = canvas.height / rect.height;
+  // Calculate the y position of the mouse relative to the canvas
+  const mouseCanvasY = (e.clientY - rect.top) * scaleY;
+  // Update mouseY position, clamping to paddle height
+  mouseY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseCanvasY - PADDLE_HEIGHT/2));
+});
+
+canvas.addEventListener('mouseenter', () => {
+  // Track when mouse is over canvas
+  mouseInsideCanvas = true;
+  canvas.style.cursor = 'none'; // Hide cursor when over canvas
+});
+
+canvas.addEventListener('mouseleave', () => {
+  // Track when mouse leaves
+  mouseInsideCanvas = false;
+  canvas.style.cursor = 'default'; // Show cursor when leaving canvas
+});
+
 // Initialize game on load
 init();
 gameLoop();
-
-// Clean up animation frame when leaving
-window.addEventListener('unload', () => {
-  if (animationFrame) {
-    cancelAnimationFrame(animationFrame);
-  }
-});

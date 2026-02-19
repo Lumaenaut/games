@@ -1,24 +1,80 @@
+:root {
+  --darkest: #2a2a2a;
+  --dark: #5a5a5a;
+  --light: #a0a0a0;
+  --lightest: #e8e8e8;
+}
+
+html, body {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  padding: 20px;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   min-width: 700px;
+  min-height: 520px;
+  cursor: pointer;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  background: var(--darkest);
+  overflow: hidden;
+  position: relative;
+}
+
+#bg-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  cursor: pointer;
-  background: white;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transform: translateY(1vh);
 }
 
-h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0 0 16px 0;
-  display: block;
+.title-placeholder {
+  width: min(520px, 76vw);
+  height: min(220px, 34vh);
+  background: var(--lightest);
+  border: 4px solid var(--dark);
+  box-shadow: 8px 8px 0 var(--darkest);
+  margin-bottom: 40px;
 }
 
-p {
-  margin: 0 0 12px 0;
-  font-size: 1rem;
-  text-transform: lowercase;
+.click-to-start {
+  margin: 0;
+  color: var(--lightest);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  animation: blink 1.4s steps(2, end) infinite;
+  user-select: none;
+  position: relative;
+  z-index: 1;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.25; }
 }

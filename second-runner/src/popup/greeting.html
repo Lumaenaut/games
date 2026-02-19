@@ -7,9 +7,13 @@
   <link rel="stylesheet" href="greeting.css"> 
 </head>
 <body>
-  <h1>Welcome SECOND RUNNER</h1>
-  <p>click to start</p>
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
+  <main class="overlay" aria-label="Greeting screen">
+    <h1 class="sr-only">SECOND RUNNER</h1>
+    <div class="title-placeholder" aria-hidden="true"></div>
+    <p class="click-to-start">CLICK TO START</p>
+  </main>
   <script src="greeting.js"></script>
 </body>
 </html>
