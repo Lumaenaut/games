@@ -8,6 +8,7 @@ let gamePaused = false;
 let animationFrame;
 let playerScore = 0;
 let computerScore = 0;
+let winningScore = 5; // First to 5 points wins
 
 // Rally counter for difficulty scaling
 let rallyCount = 0;
@@ -122,7 +123,14 @@ function draw() {
     ctx.fillStyle = '#111';
     ctx.font = 'bold 20px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('CLICK TO CONTINUE', canvas.width / 2, canvas.height / 2);
+    if (playerScore >= winningScore || computerScore >= winningScore) {
+      const winnerText = playerScore >= winningScore ? 'PLAYER WINS!' : 'COMPUTER WINS!';
+      ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 30);
+      ctx.font = '16px system-ui, sans-serif';
+      ctx.fillText('Click for next match', canvas.width / 2, canvas.height / 2 + 10);
+    } else {
+      ctx.fillText('CLICK TO CONTINUE', canvas.width / 2, canvas.height / 2);
+    }
   } else if (!gameRunning && !gamePaused) {
     // Draw start message if game hasn't started
     ctx.fillStyle = 'rgba(234, 234, 234, 0.85)';
@@ -240,7 +248,16 @@ function update() {
     if (scorer === 'player') playerScore++;
     else computerScore++;
     updateScore();
-    resetForNextRound(scorer);
+    checkWinCondition();
+    if (!gamePaused) resetForNextRound(scorer);
+  }
+}
+
+// Check win condition without auto-reset
+function checkWinCondition() {
+  if (playerScore >= winningScore || computerScore >= winningScore) {
+    gameRunning = false;
+    gamePaused = true;
   }
 }
 
@@ -281,12 +298,25 @@ canvas.addEventListener('mouseleave', () => {
 function startOrContinueGame() {
   if (gamePaused) {
     gamePaused = false;
+
+    if (playerScore >= winningScore || computerScore >= winningScore) {
+      // Match ended, reset scores for new match
+      playerScore = 0;
+      computerScore = 0;
+      updateScore();
+      turn = 'player';
+      swapPending = false;
+      init();
+    }
+
     gameRunning = true;
   } else if (!gameRunning && !gamePaused) {
     // Starting fresh
-    playerScore = 0;
-    computerScore = 0;
-    updateScore();
+    if (playerScore >= winningScore || computerScore >= winningScore) {
+      playerScore = 0;
+      computerScore = 0;
+      updateScore();
+    }
     gameRunning = true;
     gamePaused = false;
     turn = 'player';
