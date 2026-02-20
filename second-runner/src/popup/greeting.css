@@ -40,13 +40,20 @@ body {
   transform: translateY(1vh);
 }
 
-.title-placeholder {
-  width: min(520px, 76vw);
-  height: min(220px, 34vh);
-  background: var(--lightest);
-  border: 4px solid var(--dark);
-  box-shadow: 8px 8px 0 var(--darkest);
-  margin-bottom: 40px;
+.title {
+  margin: 0 0 40px 0;
+  font-family: "Courier New", Courier, "Lucida Console", monospace;
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--lightest);
+  text-shadow:
+    3px 3px 0 var(--darkest),
+    4px 4px 0 var(--dark);
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  line-height: 1.1;
 }
 
 .click-to-start {
@@ -60,18 +67,6 @@ body {
   user-select: none;
   position: relative;
   z-index: 1;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 @keyframes blink {

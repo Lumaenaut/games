@@ -1,30 +1,14 @@
-// When the DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-  const canvas = document.getElementById('bg-canvas');
-  if (canvas) startArcadeBackground(canvas);
-
-  // Make entire page clickable
-  document.body.addEventListener('click', () => {
-    window.location.href = 'main-menu.html';
-  });
-  // Also make it clear it's clickable
-  document.body.style.cursor = 'pointer';
-});
-
 function startArcadeBackground(canvas) {
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) return;
 
-  const buffer = document.createElement('canvas');
-  const bctx = buffer.getContext('2d', { alpha: false });
-  if (!bctx) return;
-
   const colors = readThemeColors();
 
   const state = {
-    scale: 4,
     bw: 0,
     bh: 0,
+    scaleX: 1,
+    scaleY: 1,
     ball: { x: 0, y: 0, vx: 0.9, vy: 0.7, r: 2 },
     paddles: [
       { x: 6, y: 10, w: 2, h: 14, vy: 0.35 },
@@ -34,29 +18,54 @@ function startArcadeBackground(canvas) {
     lastT: performance.now()
   };
 
+  const DESIGN_W = 320;
+  const DESIGN_H = 240;
+
+  function readThemeColors() {
+    const s = getComputedStyle(document.documentElement);
+    const darkest = s.getPropertyValue('--darkest').trim() || '#2a2a2a';
+    const dark = s.getPropertyValue('--dark').trim() || '#5a5a5a';
+    const light = s.getPropertyValue('--light').trim() || '#a0a0a0';
+    const lightest = s.getPropertyValue('--lightest').trim() || '#e8e8e8';
+    return { darkest, dark, light, lightest };
+  }
+
   function resize() {
     const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
     const rect = canvas.getBoundingClientRect();
     canvas.width = Math.max(1, Math.floor(rect.width * dpr));
     canvas.height = Math.max(1, Math.floor(rect.height * dpr));
 
-    // Low-res buffer for pixel feel
-    const targetBw = clampInt(Math.floor(rect.width / state.scale), 160, 320);
-    const targetBh = clampInt(Math.floor(rect.height / state.scale), 120, 240);
-    buffer.width = targetBw;
-    buffer.height = targetBh;
-    state.bw = targetBw;
-    state.bh = targetBh;
+    state.bw = canvas.width;
+    state.bh = canvas.height;
+    state.scaleX = state.bw / DESIGN_W;
+    state.scaleY = state.bh / DESIGN_H;
 
-    // Place ball and rebuild blocks
+    const scale = Math.min(state.scaleX, state.scaleY);
+    state.ball.r = Math.max(1, 2 * scale);
     state.ball.x = Math.floor(state.bw * 0.25);
     state.ball.y = Math.floor(state.bh * 0.35);
-    state.ball.vx = 0.95;
-    state.ball.vy = 0.75;
-    state.blocks = buildBlocks(state.bw, state.bh);
+    state.ball.vx = 0.95 * state.scaleX;
+    state.ball.vy = 0.75 * state.scaleY;
+
+    state.paddles[0].x = 6 * state.scaleX;
+    state.paddles[0].y = 10 * state.scaleY;
+    state.paddles[0].w = 2 * state.scaleX;
+    state.paddles[0].h = 14 * state.scaleY;
+    state.paddles[0].vy = 0.35 * state.scaleY;
+    state.paddles[1].w = 2 * state.scaleX;
+    state.paddles[1].h = 14 * state.scaleY;
+    state.paddles[1].vy = -0.28 * state.scaleY;
+
+    const designBlocks = buildBlocks(DESIGN_W, DESIGN_H);
+    state.blocks = designBlocks.map((b) => ({
+      x: b.x * state.scaleX,
+      y: b.y * state.scaleY,
+      w: b.w * state.scaleX,
+      h: b.h * state.scaleY
+    }));
 
     ctx.imageSmoothingEnabled = false;
-    bctx.imageSmoothingEnabled = false;
   }
 
   function tick(t) {
@@ -74,34 +83,26 @@ function startArcadeBackground(canvas) {
     ball.x += ball.vx * dt;
     ball.y += ball.vy * dt;
 
-    // World bounds
-    const left = 2 + ball.r;
-    const right = state.bw - 3 - ball.r;
-    const top = 2 + ball.r;
-    const bottom = state.bh - 3 - ball.r;
+    if (ball.x < ball.r) { ball.x = ball.r; ball.vx *= -1; }
+    if (ball.x > state.bw - ball.r) { ball.x = state.bw - ball.r; ball.vx *= -1; }
+    if (ball.y < ball.r) { ball.y = ball.r; ball.vy *= -1; }
+    if (ball.y > state.bh - ball.r) { ball.y = state.bh - ball.r; ball.vy *= -1; }
 
-    if (ball.x < left) { ball.x = left; ball.vx *= -1; }
-    if (ball.x > right) { ball.x = right; ball.vx *= -1; }
-    if (ball.y < top) { ball.y = top; ball.vy *= -1; }
-    if (ball.y > bottom) { ball.y = bottom; ball.vy *= -1; }
-
-    // Moving “paddles” on edges (arcade vibe)
     for (let i = 0; i < state.paddles.length; i++) {
       const p = state.paddles[i];
-      if (i === 1) p.x = state.bw - 8;
+      const sx = state.scaleX;
+      const sy = state.scaleY;
+      if (i === 1) p.x = state.bw - 8 * sx;
       p.y += p.vy * dt;
-      if (p.y < 8) { p.y = 8; p.vy *= -1; }
-      if (p.y > state.bh - 8 - p.h) { p.y = state.bh - 8 - p.h; p.vy *= -1; }
+      if (p.y < 8 * sy) { p.y = 8 * sy; p.vy *= -1; }
+      if (p.y > state.bh - 8 * sy - p.h) { p.y = state.bh - 8 * sy - p.h; p.vy *= -1; }
       bounceOffRect(ball, p, 0.06);
     }
 
-    // Static blocks
     for (const r of state.blocks) bounceOffRect(ball, r, 0.02);
 
-    // Keep middle “reserved” zone clear: if ball enters, nudge it out
     const safe = centerSafeRect(state.bw, state.bh);
     if (circleIntersectsRect(ball, safe)) {
-      // Push out along smallest overlap axis
       const dxLeft = Math.abs((safe.x - ball.x));
       const dxRight = Math.abs((safe.x + safe.w - ball.x));
       const dyTop = Math.abs((safe.y - ball.y));
@@ -115,64 +116,49 @@ function startArcadeBackground(canvas) {
   }
 
   function drawFrame(t) {
-    // Background fill
-    bctx.fillStyle = colors.darkest;
-    bctx.fillRect(0, 0, state.bw, state.bh);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Subtle grid
-    bctx.fillStyle = colors.dark;
-    for (let y = 0; y < state.bh; y += 10) bctx.fillRect(0, y, state.bw, 1);
-    for (let x = 0; x < state.bw; x += 12) bctx.fillRect(x, 0, 1, state.bh);
+    ctx.fillStyle = colors.darkest;
+    ctx.fillRect(0, 0, state.bw, state.bh);
 
-    // Border frame
-    bctx.strokeStyle = colors.light;
-    bctx.lineWidth = 1;
-    bctx.strokeRect(1, 1, state.bw - 2, state.bh - 2);
+    const gridStepX = Math.max(1, 12 * state.scaleX);
+    const gridStepY = Math.max(1, 10 * state.scaleY);
+    ctx.fillStyle = colors.dark;
+    for (let y = 0; y < state.bh; y += gridStepY) ctx.fillRect(0, y, state.bw, 1);
+    for (let x = 0; x < state.bw; x += gridStepX) ctx.fillRect(x, 0, 1, state.bh);
 
-    // Blocks
-    bctx.fillStyle = colors.dark;
-    for (const r of state.blocks) bctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = colors.light;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(1, 1, state.bw - 2, state.bh - 2);
 
-    // Moving paddles
-    bctx.fillStyle = colors.light;
+    ctx.fillStyle = colors.dark;
+    for (const r of state.blocks) ctx.fillRect(r.x, r.y, r.w, r.h);
+
+    ctx.fillStyle = colors.light;
     for (let i = 0; i < state.paddles.length; i++) {
       const p = state.paddles[i];
-      bctx.fillRect(Math.round(p.x), Math.round(p.y), p.w, p.h);
+      ctx.fillRect(Math.round(p.x), Math.round(p.y), p.w, p.h);
     }
 
-    // Reserved center area (kept visually “blank”)
-    const safe = centerSafeRect(state.bw, state.bh);
+    ctx.fillStyle = colors.lightest;
+    ctx.beginPath();
+    ctx.arc(state.ball.x, state.ball.y, state.ball.r, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Ball
-    bctx.fillStyle = colors.lightest;
-    const bx = Math.round(state.ball.x);
-    const by = Math.round(state.ball.y);
-    bctx.fillRect(bx - 1, by - 1, 3, 3);
-    bctx.fillStyle = colors.light;
-    bctx.fillRect(bx, by, 1, 1);
-
-    // Scanline shimmer (very subtle)
-    bctx.fillStyle = colors.dark;
-    const shimmerY = (Math.floor(t / 45) % 12) * 10;
-    bctx.fillRect(0, shimmerY, state.bw, 1);
-
-    // Blit buffer to screen canvas (nearest neighbor)
-    ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(buffer, 0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = colors.dark;
+    const shimmerY = (Math.floor(t / 45) % 12) * gridStepY;
+    ctx.fillRect(0, shimmerY, state.bw, 1);
   }
 
   function buildBlocks(w, h) {
     const safe = centerSafeRect(w, h);
     const blocks = [];
 
-    // Corner bumpers
     blocks.push({ x: 10, y: 8, w: 12, h: 3 });
     blocks.push({ x: w - 22, y: 8, w: 12, h: 3 });
     blocks.push({ x: 10, y: h - 11, w: 12, h: 3 });
     blocks.push({ x: w - 22, y: h - 11, w: 12, h: 3 });
 
-    // Side “rails” that avoid the safe center zone
     blocks.push({ x: 16, y: 18, w: 3, h: Math.max(10, safe.y - 22) });
     blocks.push({
       x: 16,
@@ -188,7 +174,6 @@ function startArcadeBackground(canvas) {
       h: Math.max(10, h - (safe.y + safe.h) - 22)
     });
 
-    // Top/bottom small gates
     blocks.push({ x: Math.floor(w * 0.35), y: 14, w: 16, h: 2 });
     blocks.push({ x: Math.floor(w * 0.55), y: h - 16, w: 16, h: 2 });
 
@@ -217,8 +202,7 @@ function startArcadeBackground(canvas) {
       ball.y += Math.sign(dy || ball.vy) * (ball.r + 1);
     }
 
-    // Tiny speed-up for “arcade” feel (clamped)
-    const maxV = 2.1;
+    const maxV = 2.1 * Math.max(state.scaleX, state.scaleY);
     ball.vx = clamp(ball.vx * (1 + speedup), -maxV, maxV);
     ball.vy = clamp(ball.vy * (1 + speedup), -maxV, maxV);
   }
@@ -229,15 +213,6 @@ function startArcadeBackground(canvas) {
     const dx = ball.x - cx;
     const dy = ball.y - cy;
     return (dx * dx + dy * dy) <= (ball.r * ball.r);
-  }
-
-  function readThemeColors() {
-    const s = getComputedStyle(document.documentElement);
-    const darkest = s.getPropertyValue('--darkest').trim() || '#2a2a2a';
-    const dark = s.getPropertyValue('--dark').trim() || '#5a5a5a';
-    const light = s.getPropertyValue('--light').trim() || '#a0a0a0';
-    const lightest = s.getPropertyValue('--lightest').trim() || '#e8e8e8';
-    return { darkest, dark, light, lightest };
   }
 
   function clamp(v, lo, hi) {
@@ -253,3 +228,14 @@ function startArcadeBackground(canvas) {
   state.lastT = performance.now();
   requestAnimationFrame(tick);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('bg-canvas');
+  if (canvas) startArcadeBackground(canvas);
+
+  document.body.addEventListener('click', () => {
+    window.location.href = 'main-menu.html';
+  });
+
+  document.body.style.cursor = 'pointer';
+});
