@@ -1,30 +1,27 @@
-
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 
-
+// Game state flags and scores.
 let gameRunning = false;
 let gamePaused = false;
 let animationFrame;
 let playerScore = 0;
 let computerScore = 0;
-let winningScore = 5; // First to 5 points wins
+let winningScore = 5;
 
-
+// Rally-based difficulty: speed increases with consecutive hits, capped at MAX_SPEED_MULTIPLIER.
 let rallyCount = 0;
 const BASE_BALL_SPEED = 5;
-const MAX_SPEED_MULTIPLIER = 2.5; // Max 2.5x speed
+const MAX_SPEED_MULTIPLIER = 2.5;
 let currentSpeedMultiplier = 1;
 
-
+// Paddle Y positions (player follows mouse; computer is AI).
 let playerY = canvas.height / 2 - 40;
 let computerY = canvas.height / 2 - 40;
-
 
 const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 80;
 const BASE_COMPUTER_SPEED = 4;
-
 
 let ball = {
   x: canvas.width / 2,
@@ -35,49 +32,40 @@ let ball = {
   baseSpeed: BASE_BALL_SPEED
 };
 
-
-
 let mouseY = canvas.height / 2 - 40;
-
-
 let mouseInsideCanvas = false;
 
+/** Resets ball to center and gives it a random horizontal direction and slight vertical variation. */
 function init() {
-
   ball.x = canvas.width / 2;
   ball.y = canvas.height / 2;
-  
 
   rallyCount = 0;
   currentSpeedMultiplier = 1;
   ball.baseSpeed = BASE_BALL_SPEED;
-  
-
-  ball.dx = (Math.random() > 0.5 ? BASE_BALL_SPEED : -BASE_BALL_SPEED);
-  ball.dy = (Math.random() * 4) - 2; // between -2 and 2
-}
-
-
-function resetForNextMatch() {
-  ball.x = canvas.width / 2;
-  ball.y = canvas.height / 2;
-  
-
-  rallyCount = 0;
-  currentSpeedMultiplier = 1;
-  ball.baseSpeed = BASE_BALL_SPEED;
-  
-
 
   ball.dx = (Math.random() > 0.5 ? BASE_BALL_SPEED : -BASE_BALL_SPEED);
   ball.dy = (Math.random() * 4) - 2;
-  
+}
+
+
+/** Resets ball and difficulty for the next point; pauses until user clicks to continue. */
+function resetForNextMatch() {
+  ball.x = canvas.width / 2;
+  ball.y = canvas.height / 2;
+
+  rallyCount = 0;
+  currentSpeedMultiplier = 1;
+  ball.baseSpeed = BASE_BALL_SPEED;
+
+  ball.dx = (Math.random() > 0.5 ? BASE_BALL_SPEED : -BASE_BALL_SPEED);
+  ball.dy = (Math.random() * 4) - 2;
 
   gameRunning = false;
   gamePaused = true;
 }
 
-
+/** Reads the 4-color greyscale palette from CSS custom properties. */
 function getThemeColors() {
   const s = getComputedStyle(document.documentElement);
   return {
@@ -89,13 +77,12 @@ function getThemeColors() {
 }
 const theme = getThemeColors();
 
-
+/** Draws the court, paddles, ball, and any overlay (pause, start, win, rally count). */
 function draw() {
-
   ctx.fillStyle = theme.lightest;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
 
+  // Center line (dashed).
   ctx.strokeStyle = theme.dark;
   ctx.setLineDash([5, 5]);
   ctx.beginPath();
@@ -103,20 +90,19 @@ function draw() {
   ctx.lineTo(canvas.width / 2, canvas.height);
   ctx.stroke();
   ctx.setLineDash([]);
-  
 
+  // Player (left) and computer (right) paddles.
   ctx.fillStyle = theme.darkest;
-  
   ctx.fillRect(10, mouseY, PADDLE_WIDTH, PADDLE_HEIGHT);
   ctx.fillRect(canvas.width - PADDLE_WIDTH - 10, computerY, PADDLE_WIDTH, PADDLE_HEIGHT);
-  
 
+  // Ball.
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
   ctx.fillStyle = theme.darkest;
   ctx.fill();
-  
 
+  // Pause overlay: winner text or "CLICK TO CONTINUE".
   if (gamePaused && !gameRunning) {
     ctx.fillStyle = theme.lightest;
     ctx.globalAlpha = 0.9;
@@ -137,7 +123,7 @@ function draw() {
       ctx.fillText('CLICK TO CONTINUE', canvas.width / 2, canvas.height / 2);
     }
   } else if (!gameRunning && !gamePaused) {
-
+    // Start overlay: "CLICK TO START".
     ctx.fillStyle = theme.lightest;
     ctx.globalAlpha = 0.9;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -147,8 +133,8 @@ function draw() {
     ctx.textAlign = 'center';
     ctx.fillText('CLICK TO START', canvas.width / 2, canvas.height / 2);
   }
-  
 
+  // Rally counter and speed multiplier (subtle, top-right).
   if (gameRunning && rallyCount > 0) {
     ctx.fillStyle = theme.darkest;
     ctx.globalAlpha = 0.5;
@@ -160,106 +146,78 @@ function draw() {
 }
 
 
+/** Increases rally count, bumps speed multiplier (capped), and applies it to ball velocity while keeping direction. */
 function updateDifficulty() {
-
   rallyCount++;
-  
-
-
   currentSpeedMultiplier = Math.min(1 + (Math.floor(rallyCount / 2) * 0.1), MAX_SPEED_MULTIPLIER);
-  
-
   const directionX = ball.dx > 0 ? 1 : -1;
   const directionY = ball.dy > 0 ? 1 : -1;
-  
   ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
   ball.dx = directionX * ball.baseSpeed;
   ball.dy = Math.abs(ball.dy) * directionY;
 }
 
-
+/** Moves paddles and ball, handles wall and paddle bounces, and scoring (left/right goal). */
 function update() {
   if (!gameRunning) return;
-  
-
 
   playerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseY));
-  
 
+  // Computer AI: move toward ball (or center when not running), with speed that scales with difficulty.
   const computerPaddleCenter = computerY + PADDLE_HEIGHT / 2;
-
   const computerSpeed = BASE_COMPUTER_SPEED * (1 + (currentSpeedMultiplier - 1) * 0.5);
-  
   if (computerPaddleCenter < ball.y - 10) {
     computerY += computerSpeed;
   } else if (computerPaddleCenter > ball.y + 10) {
     computerY -= computerSpeed;
   }
-  
-
   computerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, computerY));
-  
 
   ball.x += ball.dx;
   ball.y += ball.dy;
-  
 
+  // Top and bottom walls: reflect vertical velocity.
   if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
     ball.dy *= -1;
   }
-  
 
-
-  if (ball.x - ball.radius < 10 + PADDLE_WIDTH && 
+  // Player paddle (left): AABB overlap then angle-based bounce and difficulty bump.
+  if (ball.x - ball.radius < 10 + PADDLE_WIDTH &&
       ball.x + ball.radius > 10 &&
-      ball.y > playerY && 
+      ball.y > playerY &&
       ball.y < playerY + PADDLE_HEIGHT) {
-    
-
     const relativeIntersectY = (ball.y - (playerY + PADDLE_HEIGHT/2)) / (PADDLE_HEIGHT/2);
-    const bounceAngle = relativeIntersectY * 0.8; // Max 80% angle
-    
-    ball.dx = -ball.dx; // Reverse horizontal direction
-    ball.dy = bounceAngle * ball.baseSpeed; // Use baseSpeed for consistent feel
-    
-
-    if (Math.abs(ball.dy) < 1.5) {
-      ball.dy = ball.dy > 0 ? 1.5 : -1.5;
-    }
-    
-
-    updateDifficulty();
-  }
-  
-
-  if (ball.x + ball.radius > canvas.width - PADDLE_WIDTH - 10 && 
-      ball.x - ball.radius < canvas.width - 10 &&
-      ball.y > computerY && 
-      ball.y < computerY + PADDLE_HEIGHT) {
-    
-    const relativeIntersectY = (ball.y - (computerY + PADDLE_HEIGHT/2)) / (PADDLE_HEIGHT/2);
     const bounceAngle = relativeIntersectY * 0.8;
-    
     ball.dx = -ball.dx;
     ball.dy = bounceAngle * ball.baseSpeed;
-    
     if (Math.abs(ball.dy) < 1.5) {
       ball.dy = ball.dy > 0 ? 1.5 : -1.5;
     }
-    
-
     updateDifficulty();
   }
-  
 
+  // Computer paddle (right): same bounce logic.
+  if (ball.x + ball.radius > canvas.width - PADDLE_WIDTH - 10 &&
+      ball.x - ball.radius < canvas.width - 10 &&
+      ball.y > computerY &&
+      ball.y < computerY + PADDLE_HEIGHT) {
+    const relativeIntersectY = (ball.y - (computerY + PADDLE_HEIGHT/2)) / (PADDLE_HEIGHT/2);
+    const bounceAngle = relativeIntersectY * 0.8;
+    ball.dx = -ball.dx;
+    ball.dy = bounceAngle * ball.baseSpeed;
+    if (Math.abs(ball.dy) < 1.5) {
+      ball.dy = ball.dy > 0 ? 1.5 : -1.5;
+    }
+    updateDifficulty();
+  }
+
+  // Scoring: ball past left edge = computer scores; past right edge = player scores.
   if (ball.x - ball.radius < 0) {
-
     computerScore++;
     updateScore();
     checkWinCondition();
     if (!gamePaused) resetForNextMatch();
   } else if (ball.x + ball.radius > canvas.width) {
-
     playerScore++;
     updateScore();
     checkWinCondition();
@@ -268,6 +226,7 @@ function update() {
 }
 
 
+/** Stops the game and shows win overlay when either side reaches winningScore. */
 function checkWinCondition() {
   if (playerScore >= winningScore || computerScore >= winningScore) {
     gameRunning = false;
@@ -275,31 +234,28 @@ function checkWinCondition() {
   }
 }
 
-
+/** Resets ball position and sends it toward the given scorer's side; resets difficulty. */
 function resetBall(scorer) {
   ball.x = canvas.width / 2;
   ball.y = canvas.height / 2;
-  
-
   if (scorer === 'player') {
-    ball.dx = -BASE_BALL_SPEED; // Toward computer (right side)
+    ball.dx = -BASE_BALL_SPEED;
   } else {
-    ball.dx = BASE_BALL_SPEED; // Toward player (left side)
+    ball.dx = BASE_BALL_SPEED;
   }
-  
   ball.dy = (Math.random() * 4) - 2;
   rallyCount = 0;
   currentSpeedMultiplier = 1;
   ball.baseSpeed = BASE_BALL_SPEED;
 }
 
-
+/** Writes current scores to the DOM. */
 function updateScore() {
   document.getElementById('player-score').textContent = playerScore;
   document.getElementById('computer-score').textContent = computerScore;
 }
 
-
+/** RequestAnimationFrame loop: update when running, then draw. */
 function gameLoop() {
   if (gameRunning) {
     update();
@@ -308,27 +264,25 @@ function gameLoop() {
   animationFrame = requestAnimationFrame(gameLoop);
 }
 
-
+// Map mouse Y to canvas Y and clamp to paddle range.
 canvas.addEventListener('mousemove', (e) => {
   const rect = canvas.getBoundingClientRect();
   const scaleY = canvas.height / rect.height;
   const mouseCanvasY = (e.clientY - rect.top) * scaleY;
-  
-
   mouseY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseCanvasY - PADDLE_HEIGHT/2));
 });
 
 canvas.addEventListener('mouseenter', () => {
   mouseInsideCanvas = true;
-  canvas.style.cursor = 'none'; // Hide cursor when over canvas
+  canvas.style.cursor = 'none';
 });
 
 canvas.addEventListener('mouseleave', () => {
   mouseInsideCanvas = false;
-  canvas.style.cursor = 'default'; // Show cursor when leaving canvas
+  canvas.style.cursor = 'default';
 });
 
-
+/** Resumes from pause or starts a new game (resetting scores after a win if needed). */
 function startOrContinueGame() {
   if (gamePaused) {
     gamePaused = false;
@@ -356,24 +310,20 @@ function startOrContinueGame() {
 }
 
 
+// Click to start/continue, unless the user clicked the back button.
 document.addEventListener('click', (e) => {
-
   if (e.target.closest('.back-button')) {
     return;
   }
-  
   startOrContinueGame();
 });
-
 
 document.getElementById('back-button').addEventListener('click', () => {
   window.location.href = '../../popup/main-menu.html';
 });
 
-
 init();
 gameLoop();
-
 
 window.addEventListener('unload', () => {
   if (animationFrame) {
