@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/welcomeFragment">
+
+    <fragment
+        android:id="@+id/welcomeFragment"
+        android:name="com.lumaenaut.secondrunner.WelcomeFragment"
+        android:label="Second Runner"
+        tools:layout="@layout/fragment_welcome" />
+    <fragment
+        android:id="@+id/mainMenuFragment"
+        android:name="com.lumaenaut.secondrunner.MainMenuFragment"
+        android:label="Main Menu"
+        tools:layout="@layout/fragment_main_menu" />
+    <fragment
+        android:id="@+id/gameFragment"
+        android:name="com.lumaenaut.secondrunner.GameFragment"
+        android:label="Game"
+        tools:layout="@layout/fragment_game">
+        <argument
+            android:name="gameType"
+            app:argType="string" />
+    </fragment>
+</navigation>

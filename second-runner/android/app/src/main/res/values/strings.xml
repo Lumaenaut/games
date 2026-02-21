@@ -1,3 +1,18 @@
 <resources>
     <string name="app_name">Second Runner</string>
+    <string name="click_to_start">CLICK TO START</string>
+    <string name="handball">HANDBALL</string>
+    <string name="hockey">HOCKEY</string>
+    <string name="tennis">TENNIS</string>
+    <string name="back_to_menu">BACK TO MENU</string>
+    <string name="player_score">Player: %d</string>
+    <string name="computer_score">Computer: %d</string>
+    <string name="click_to_continue">CLICK TO CONTINUE</string>
+    <string name="click_to_start_game">CLICK TO START</string>
+    <string name="player_wins">PLAYER WINS!</string>
+    <string name="computer_wins">COMPUTER WINS!</string>
+    <string name="click_for_next_match">Click for next match</string>
+    <string name="tennis_instructions">Move your mouse up and down to control the paddle</string>
+    <string name="hockey_instructions">Move your finger up and down to control both paddles</string>
+    <string name="handball_instructions">You control the black paddle. Move finger up/down.</string>
 </resources>
