@@ -3,8 +3,8 @@
  * Single-player hockey: player and computer each control a goalie and a forward
  * paddle; puck bounces off top/bottom walls and off goal zones on the sides;
  * middle of each side is the goal. First to winningScore wins. Difficulty
- * (puck and computer speed) increases with rally count and starts at
- * rally count. Click to start/continue; back button returns to main menu.
+ * (puck and computer speed) increases with rally count. Click to start/continue;
+ * back button returns to main menu.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -26,7 +26,7 @@ let computerScore = 0;
 let winningScore = 5;
 
 /* -------------------------------------------------------------------------- */
-/* Rally-based difficulty (same pattern as tennis)                             */
+/* Rally-based difficulty (same pattern as tennis)                            */
 /* -------------------------------------------------------------------------- */
 
 let rallyCount = 0;
@@ -66,44 +66,9 @@ let puck = {
 };
 
 let mouseY = canvas.height / 2 - PADDLE_HEIGHT / 2;
-let mouseInsideCanvas = false;
 
 /* -------------------------------------------------------------------------- */
-/* Init and reset                                                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Resets puck to center with random horizontal direction and resets difficulty.
- * Called on first load and when starting a new match after a win.
- */
-function init() {
-  puck.x = canvas.width / 2;
-  puck.y = canvas.height / 2;
-  rallyCount = 0;
-  currentSpeedMultiplier = 1;
-  puck.baseSpeed = BASE_PUCK_SPEED;
-  puck.dx = (Math.random() > 0.5 ? BASE_PUCK_SPEED : -BASE_PUCK_SPEED);
-  puck.dy = (Math.random() * 4) - 2;
-}
-
-/**
- * Resets puck and difficulty for the next point; pauses until user clicks.
- * Used after a goal; overlay is drawn until click.
- */
-function resetForNextMatch() {
-  puck.x = canvas.width / 2;
-  puck.y = canvas.height / 2;
-  rallyCount = 0;
-  currentSpeedMultiplier = 1;
-  puck.baseSpeed = BASE_PUCK_SPEED;
-  puck.dx = (Math.random() > 0.5 ? BASE_PUCK_SPEED : -BASE_PUCK_SPEED);
-  puck.dy = (Math.random() * 4) - 2;
-  gameRunning = false;
-  gamePaused = true;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Theme and drawing                                                           */
+/* Functions (in order of use in script)                                      */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -122,6 +87,20 @@ function getThemeColors() {
   };
 }
 const theme = getThemeColors();
+
+/**
+ * Resets puck to center with random horizontal direction and resets difficulty.
+ * Called on first load and when starting a new match after a win.
+ */
+function init() {
+  puck.x = canvas.width / 2;
+  puck.y = canvas.height / 2;
+  rallyCount = 0;
+  currentSpeedMultiplier = 1;
+  puck.baseSpeed = BASE_PUCK_SPEED;
+  puck.dx = (Math.random() > 0.5 ? BASE_PUCK_SPEED : -BASE_PUCK_SPEED);
+  puck.dy = (Math.random() * 4) - 2;
+}
 
 /**
  * Draws the rink (background, center line, blue lines, bounce zones), four
@@ -182,7 +161,7 @@ function draw() {
     ctx.fillStyle = theme.darkest;
     ctx.font = 'bold 20px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    
+
     if (playerScore >= winningScore || computerScore >= winningScore) {
 
       const winnerText = playerScore >= winningScore ? 'PLAYER WINS!' : 'COMPUTER WINS!';
@@ -215,10 +194,6 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 }
-
-/* -------------------------------------------------------------------------- */
-/* Difficulty and physics                                                      */
-/* -------------------------------------------------------------------------- */
 
 /**
  * Bumps rally count and speed multiplier (no cap), applies to puck velocity
@@ -352,6 +327,22 @@ function updateScore() {
 }
 
 /**
+ * Resets puck and difficulty for the next point; pauses until user clicks.
+ * Used after a goal; overlay is drawn until click.
+ */
+function resetForNextMatch() {
+  puck.x = canvas.width / 2;
+  puck.y = canvas.height / 2;
+  rallyCount = 0;
+  currentSpeedMultiplier = 1;
+  puck.baseSpeed = BASE_PUCK_SPEED;
+  puck.dx = (Math.random() > 0.5 ? BASE_PUCK_SPEED : -BASE_PUCK_SPEED);
+  puck.dy = (Math.random() * 4) - 2;
+  gameRunning = false;
+  gamePaused = true;
+}
+
+/**
  * RequestAnimationFrame loop: update (paddle and puck) then draw every frame.
  */
 function gameLoop() {
@@ -360,28 +351,6 @@ function gameLoop() {
   animationFrame = requestAnimationFrame(gameLoop);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Input and navigation                                                        */
-/* -------------------------------------------------------------------------- */
-
-// Map mouse Y to canvas and clamp to paddle range.
-canvas.addEventListener('mousemove', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const scaleY = canvas.height / rect.height;
-  const mouseCanvasY = (e.clientY - rect.top) * scaleY;
-  mouseY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseCanvasY - PADDLE_HEIGHT/2));
-});
-
-canvas.addEventListener('mouseenter', () => {
-  mouseInsideCanvas = true;
-  canvas.style.cursor = 'none';
-});
-
-canvas.addEventListener('mouseleave', () => {
-  mouseInsideCanvas = false;
-  canvas.style.cursor = 'default';
-});
-
 /**
  * Resumes from pause or starts a new game. If resuming after a win, resets
  * scores and calls init() before setting gameRunning.
@@ -389,7 +358,7 @@ canvas.addEventListener('mouseleave', () => {
 function startOrContinueGame() {
   if (gamePaused) {
     gamePaused = false;
-    
+
     if (playerScore >= winningScore || computerScore >= winningScore) {
 
       playerScore = 0;
@@ -397,7 +366,7 @@ function startOrContinueGame() {
       updateScore();
       init();
     }
-    
+
     gameRunning = true;
   } else if (!gameRunning && !gamePaused) {
 
@@ -411,6 +380,26 @@ function startOrContinueGame() {
     init();
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Event listeners and startup                                                 */
+/* -------------------------------------------------------------------------- */
+
+// Map mouse Y to canvas and clamp to paddle range.
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleY = canvas.height / rect.height;
+  const mouseCanvasY = (e.clientY - rect.top) * scaleY;
+  mouseY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseCanvasY - PADDLE_HEIGHT/2));
+});
+
+canvas.addEventListener('mouseenter', () => {
+  canvas.style.cursor = 'none';
+});
+
+canvas.addEventListener('mouseleave', () => {
+  canvas.style.cursor = 'default';
+});
 
 // Click to start/continue; ignore if user clicked the back button.
 document.addEventListener('click', (e) => {

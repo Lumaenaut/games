@@ -58,51 +58,6 @@ let ball = {
 
 // Mouse Y mapped to canvas (clamped to paddle range); used when cursor is inside canvas.
 let mouseY = canvas.height / 2 - 40;
-let mouseInsideCanvas = false;
-
-/* -------------------------------------------------------------------------- */
-/* Init and reset                                                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Resets ball to center and gives it a random horizontal direction and slight
- * vertical variation. Resets rally count and applies INITIAL_SPEED_MULTIPLIER.
- */
-function init() {
-  ball.x = canvas.width / 2;
-  ball.y = canvas.height / 2;
-
-  rallyCount = 0;
-  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER;
-  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
-
-  ball.dx = (Math.random() > 0.5 ? ball.baseSpeed : -ball.baseSpeed);
-  ball.dy = (Math.random() * 4) - 2;
-}
-
-
-/**
- * Resets ball and difficulty for the next point; pauses until user clicks to continue.
- * Used after a goal; gameLoop keeps drawing the overlay until the user clicks.
- */
-function resetForNextMatch() {
-  ball.x = canvas.width / 2;
-  ball.y = canvas.height / 2;
-
-  rallyCount = 0;
-  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER;
-  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
-
-  ball.dx = (Math.random() > 0.5 ? ball.baseSpeed : -ball.baseSpeed);
-  ball.dy = (Math.random() * 4) - 2;
-
-  gameRunning = false;
-  gamePaused = true;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Theme and drawing                                                           */
-/* -------------------------------------------------------------------------- */
 
 /**
  * Reads the four-color greyscale palette from CSS custom properties on the document.
@@ -120,6 +75,22 @@ function getThemeColors() {
   };
 }
 const theme = getThemeColors();
+
+/**
+ * Resets ball to center and gives it a random horizontal direction and slight
+ * vertical variation. Resets rally count and applies INITIAL_SPEED_MULTIPLIER.
+ */
+function init() {
+  ball.x = canvas.width / 2;
+  ball.y = canvas.height / 2;
+
+  rallyCount = 0;
+  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER;
+  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
+
+  ball.dx = (Math.random() > 0.5 ? ball.baseSpeed : -ball.baseSpeed);
+  ball.dy = (Math.random() * 4) - 2;
+}
 
 /**
  * Draws the court (background, center line), paddles, ball, and overlays.
@@ -159,7 +130,7 @@ function draw() {
     ctx.fillStyle = theme.darkest;
     ctx.font = 'bold 20px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    
+
     if (playerScore >= winningScore || computerScore >= winningScore) {
 
       const winnerText = playerScore >= winningScore ? 'PLAYER WINS!' : 'COMPUTER WINS!';
@@ -192,10 +163,6 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 }
-
-/* -------------------------------------------------------------------------- */
-/* Difficulty and game loop update                                             */
-/* -------------------------------------------------------------------------- */
 
 /**
  * Increases rally count, bumps speed multiplier (no cap), and applies it to ball
@@ -309,31 +276,30 @@ function checkWinCondition() {
 }
 
 /**
- * Resets ball position and sends it toward the given scorer's side; resets
- * difficulty to initial. Used when starting the next point after a goal.
- *
- * @param {'player'|'computer'} scorer - Who scored; ball is sent toward the other side.
- */
-function resetBall(scorer) {
-  ball.x = canvas.width / 2;
-  ball.y = canvas.height / 2;
-  rallyCount = 0;
-  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER;
-  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
-  if (scorer === 'player') {
-    ball.dx = -ball.baseSpeed;
-  } else {
-    ball.dx = ball.baseSpeed;
-  }
-  ball.dy = (Math.random() * 4) - 2;
-}
-
-/**
  * Writes current player and computer scores to the DOM elements.
  */
 function updateScore() {
   document.getElementById('player-score').textContent = playerScore;
   document.getElementById('computer-score').textContent = computerScore;
+}
+
+/**
+ * Resets ball and difficulty for the next point; pauses until user clicks to continue.
+ * Used after a goal; gameLoop keeps drawing the overlay until the user clicks.
+ */
+function resetForNextMatch() {
+  ball.x = canvas.width / 2;
+  ball.y = canvas.height / 2;
+
+  rallyCount = 0;
+  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER;
+  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
+
+  ball.dx = (Math.random() > 0.5 ? ball.baseSpeed : -ball.baseSpeed);
+  ball.dy = (Math.random() * 4) - 2;
+
+  gameRunning = false;
+  gamePaused = true;
 }
 
 /**
@@ -347,36 +313,14 @@ function gameLoop() {
   animationFrame = requestAnimationFrame(gameLoop);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Input and navigation                                                        */
-/* -------------------------------------------------------------------------- */
-
-// Map mouse Y to canvas Y and clamp to paddle range.
-canvas.addEventListener('mousemove', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const scaleY = canvas.height / rect.height;
-  const mouseCanvasY = (e.clientY - rect.top) * scaleY;
-  mouseY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseCanvasY - PADDLE_HEIGHT/2));
-});
-
-canvas.addEventListener('mouseenter', () => {
-  mouseInsideCanvas = true;
-  canvas.style.cursor = 'none';
-});
-
-canvas.addEventListener('mouseleave', () => {
-  mouseInsideCanvas = false;
-  canvas.style.cursor = 'default';
-});
-
 /**
  * Resumes from pause or starts a new game. If resuming after a win, resets
  * scores and calls init() before setting gameRunning.
  */
 function startOrContinueGame() {
+  
   if (gamePaused) {
     gamePaused = false;
-    
     if (playerScore >= winningScore || computerScore >= winningScore) {
 
       playerScore = 0;
@@ -384,7 +328,7 @@ function startOrContinueGame() {
       updateScore();
       init();
     }
-    
+
     gameRunning = true;
   } else if (!gameRunning && !gamePaused) {
 
@@ -398,6 +342,26 @@ function startOrContinueGame() {
     init();
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Event listeners and startup                                                 */
+/* -------------------------------------------------------------------------- */
+
+// Map mouse Y to canvas Y and clamp to paddle range.
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleY = canvas.height / rect.height;
+  const mouseCanvasY = (e.clientY - rect.top) * scaleY;
+  mouseY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseCanvasY - PADDLE_HEIGHT/2));
+});
+
+canvas.addEventListener('mouseenter', () => {
+  canvas.style.cursor = 'none';
+});
+
+canvas.addEventListener('mouseleave', () => {
+  canvas.style.cursor = 'default';
+});
 
 // Click to start/continue; ignore if user clicked the back button.
 document.addEventListener('click', (e) => {

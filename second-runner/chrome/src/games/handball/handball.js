@@ -62,11 +62,27 @@ let ball = {
 };
 
 let mouseY = canvas.height / 2 - 40;
-let mouseInsideCanvas = false;
 
 /* -------------------------------------------------------------------------- */
-/* Init and reset                                                              */
+/* Functions (in order of use in script)                                      */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Reads the four-color greyscale palette from CSS custom properties.
+ * Fallbacks used if theme does not define --darkest, --dark, --light, --lightest.
+ *
+ * @returns {{ darkest: string, dark: string, light: string, lightest: string }}
+ */
+function getThemeColors() {
+  const s = getComputedStyle(document.documentElement);
+  return {
+    darkest: (s.getPropertyValue('--darkest') || '#2a2a2a').trim(),
+    dark: (s.getPropertyValue('--dark') || '#5a5a5a').trim(),
+    light: (s.getPropertyValue('--light') || '#a0a0a0').trim(),
+    lightest: (s.getPropertyValue('--lightest') || '#e8e8e8').trim()
+  };
+}
+const theme = getThemeColors();
 
 /**
  * Resets ball to center moving right and resets difficulty. Called on first
@@ -101,27 +117,6 @@ function resetForNextRound(nextTurn) {
   gameRunning = false;
   gamePaused = true;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Theme and drawing                                                           */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Reads the four-color greyscale palette from CSS custom properties.
- * Fallbacks used if theme does not define --darkest, --dark, --light, --lightest.
- *
- * @returns {{ darkest: string, dark: string, light: string, lightest: string }}
- */
-function getThemeColors() {
-  const s = getComputedStyle(document.documentElement);
-  return {
-    darkest: (s.getPropertyValue('--darkest') || '#2a2a2a').trim(),
-    dark: (s.getPropertyValue('--dark') || '#5a5a5a').trim(),
-    light: (s.getPropertyValue('--light') || '#a0a0a0').trim(),
-    lightest: (s.getPropertyValue('--lightest') || '#e8e8e8').trim()
-  };
-}
-const theme = getThemeColors();
 
 /**
  * Draws the court (background, horizontal center line, top/right/bottom walls),
@@ -203,13 +198,10 @@ function draw() {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Difficulty and game loop update                                             */
-/* -------------------------------------------------------------------------- */
-
 /**
- * Bumps rally count and speed multiplier (capped), applies to ball velocity
- * while preserving direction. Called when the forward paddle deflects the ball.
+ * Bumps rally count and speed multiplier; applies to ball velocity
+ * while preserving direction. Base is INITIAL_SPEED_MULTIPLIER so first hit doesn't drop speed; no cap.
+ * Called when the forward paddle deflects the ball.
  */
 function updateDifficulty() {
   rallyCount++;
@@ -361,7 +353,7 @@ function startOrContinueGame() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Input and navigation                                                        */
+/* Event listeners and startup                                                 */
 /* -------------------------------------------------------------------------- */
 
 window.addEventListener('unload', () => {
@@ -391,12 +383,10 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('mouseenter', () => {
-  mouseInsideCanvas = true;
   canvas.style.cursor = 'none';
 });
 
 canvas.addEventListener('mouseleave', () => {
-  mouseInsideCanvas = false;
   canvas.style.cursor = 'default';
 });
 
