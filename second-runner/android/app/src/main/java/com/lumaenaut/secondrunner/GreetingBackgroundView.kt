@@ -9,10 +9,10 @@ import android.view.Choreographer
 import android.view.View
 import androidx.core.content.ContextCompat
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sign
-import kotlin.math.sqrt
 
 /**
  * Arcade-style animated background: ball bounces off paddles and blocks, with grid and border.
@@ -25,17 +25,31 @@ class GreetingBackgroundView @JvmOverloads constructor(
 
     private val designW = 320f
     private val designH = 240f
+    /** Standard thickness for paddles, blocks, rails (in design units). */
+    private val strokeD = 3f
 
     private var bw = 0f
     private var bh = 0f
-    private var scaleX = 1f
-    private var scaleY = 1f
+    /** Uniform scale so aspect ratio is preserved; design (320×240) fits in view. */
+    private var scale = 1f
+    private var offsetX = 0f
+    private var offsetY = 0f
 
+    /** Ball in screen space (pixels) so it can bounce off display edges. */
     private val ball = Ball(0f, 0f, 0.9f, 0.7f, 2f)
+    private val railXLeft = 16f
+    private val railXRight = designW - 16f
+
     private val paddles = mutableListOf(
-        Paddle(6f, 10f, 2f, 14f, 0.35f),
-        Paddle(0f, 0f, 2f, 14f, -0.28f)
+        Paddle(6f, 10f, strokeD, 14f, 0.42f),
+        Paddle(0f, 0f, strokeD, 14f, -0.31f),
+        Paddle(-28f, 10f, strokeD, 14f, 0.38f),
+        Paddle(0f, 0f, strokeD, 14f, -0.27f)
     )
+    /** Outer paddle x in design space: halfway between rail and display edge (set in onSizeChanged). */
+    private var leftOuterPaddleX = -28f
+    private var rightOuterPaddleX = designW + 28f
+
     private val blocks = mutableListOf<RectF>()
     private var lastFrameTime = 0L
 
@@ -57,47 +71,70 @@ class GreetingBackgroundView @JvmOverloads constructor(
         }
     }
 
-    init {
+    init {  
         darkest = ContextCompat.getColor(context, R.color.darkest)
         dark = ContextCompat.getColor(context, R.color.dark)
         light = ContextCompat.getColor(context, R.color.light)
         lightest = ContextCompat.getColor(context, R.color.lightest)
     }
 
+    /** Design coords -> screen coords (preserves aspect). */
+    private fun sx(dx: Float) = offsetX + dx * scale
+    private fun sy(dy: Float) = offsetY + dy * scale
+
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         bw = w.toFloat()
         bh = h.toFloat()
-        scaleX = bw / designW
-        scaleY = bh / designH
-        val scale = min(scaleX, scaleY)
-        ball.r = max(1f, 2 * scale)
-        ball.x = bw * 0.25f
-        ball.y = bh * 0.35f
-        ball.vx = 0.95f * scaleX
-        ball.vy = 0.75f * scaleY
-        paddles[0].x = 6 * scaleX
-        paddles[0].y = 10 * scaleY
-        paddles[0].w = 2 * scaleX
-        paddles[0].h = 14 * scaleY
-        paddles[0].vy = 0.35f * scaleY
-        paddles[1].w = 2 * scaleX
-        paddles[1].h = 14 * scaleY
-        paddles[1].vy = -0.28f * scaleY
+        scale = min(bw / designW, bh / designH)
+        offsetX = (bw - designW * scale) / 2f
+        offsetY = (bh - designH * scale) / 2f
+        ball.r = 2f * scale
+        ball.x = offsetX + designW * 0.25f * scale
+        ball.y = offsetY + designH * 0.35f * scale
+        ball.vx = 0.95f * scale
+        ball.vy = 0.75f * scale
+        leftOuterPaddleX = ((-offsetX / scale) + railXLeft) / 2f
+        rightOuterPaddleX = (railXRight + (bw - offsetX) / scale) / 2f
+        paddles[0].x = 6f
+        paddles[0].y = 18f
+        paddles[0].w = strokeD
+        paddles[0].h = 14f
+        paddles[0].vy = 0.42f
+        paddles[1].x = designW - (strokeD + 5f)
+        paddles[1].y = 120f
+        paddles[1].w = strokeD
+        paddles[1].h = 14f
+        paddles[1].vy = -0.31f
+        paddles[2].x = leftOuterPaddleX
+        paddles[2].y = 50f
+        paddles[2].w = strokeD
+        paddles[2].h = 14f
+        paddles[2].vy = 0.38f
+        paddles[3].x = rightOuterPaddleX
+        paddles[3].y = 180f
+        paddles[3].w = strokeD
+        paddles[3].h = 14f
+        paddles[3].vy = -0.27f
         buildBlocks()
     }
 
     private fun buildBlocks() {
         blocks.clear()
-        val railH = max(10f, bh - 40)
-        blocks.add(RectF(10 * scaleX, 8 * scaleY, (10 + 12) * scaleX, (8 + 3) * scaleY))
-        blocks.add(RectF(bw - 22 * scaleX, 8 * scaleY, bw - 10 * scaleX, (8 + 3) * scaleY))
-        blocks.add(RectF(10 * scaleX, bh - 11 * scaleY, (10 + 12) * scaleX, bh - 8 * scaleY))
-        blocks.add(RectF(bw - 22 * scaleX, bh - 11 * scaleY, bw - 10 * scaleX, bh - 8 * scaleY))
-        blocks.add(RectF(16 * scaleX, 18 * scaleY, 19 * scaleX, 18 * scaleY + railH))
-        blocks.add(RectF(bw - 19 * scaleX, 18 * scaleY, bw - 16 * scaleX, 18 * scaleY + railH))
-        blocks.add(RectF((designW * 0.35f).toInt() * scaleX, 14 * scaleY, ((designW * 0.35f).toInt() + 16) * scaleX, 16 * scaleY))
-        blocks.add(RectF((designW * 0.55f).toInt() * scaleX, bh - 16 * scaleY, ((designW * 0.55f).toInt() + 16) * scaleX, bh - 14 * scaleY))
+        val railH = designH - 18f - 18f
+        val t = strokeD
+        // All in design space (0..designW, 0..designH)
+        // Corner blocks (length 12, thickness t)
+        blocks.add(RectF(10f, 8f, 10f + 12f, 8f + t))
+        blocks.add(RectF(designW - (10f + 12f), 8f, designW - 10f, 8f + t))
+        blocks.add(RectF(10f, designH - (8f + t), 10f + 12f, designH - 8f))
+        blocks.add(RectF(designW - (10f + 12f), designH - (8f + t), designW - 10f, designH - 8f))
+        // Vertical rails (thickness t)
+        blocks.add(RectF(16f, 18f, 16f + t, 18f + railH))
+        blocks.add(RectF(designW - (16f + t), 18f, designW - 16f, 18f + railH))
+        // Horizontal center blocks (length 16, thickness t)
+        blocks.add(RectF(designW * 0.35f, 14f, designW * 0.35f + 16f, 14f + t))
+        blocks.add(RectF(designW * 0.55f, designH - (14f + t), designW * 0.55f + 16f, designH - 14f))
     }
 
     override fun onAttachedToWindow() {
@@ -120,16 +157,16 @@ class GreetingBackgroundView @JvmOverloads constructor(
         if (ball.x > bw - ball.r) { ball.x = bw - ball.r; ball.vx *= -1 }
         if (ball.y < ball.r) { ball.y = ball.r; ball.vy *= -1 }
         if (ball.y > bh - ball.r) { ball.y = bh - ball.r; ball.vy *= -1 }
-        val sx = scaleX
-        val sy = scaleY
-        paddles[1].x = bw - 8 * sx
+        paddles[1].x = designW - (strokeD + 5f)
+        paddles[2].x = leftOuterPaddleX
+        paddles[3].x = rightOuterPaddleX
         for (p in paddles) {
             p.y += p.vy * dt
-            if (p.y < 8 * sy) { p.y = 8 * sy; p.vy *= -1 }
-            if (p.y > bh - 8 * sy - p.h) { p.y = bh - 8 * sy - p.h; p.vy *= -1 }
-            bounceOffRect(ball, p.x, p.y, p.w, p.h, 0.06f)
+            if (p.y < 8f) { p.y = 8f; p.vy *= -1 }
+            if (p.y > designH - 8f - p.h) { p.y = designH - 8f - p.h; p.vy *= -1 }
+            bounceOffRect(ball, sx(p.x), sy(p.y), p.w * scale, p.h * scale, 0.06f)
         }
-        for (r in blocks) bounceOffRect(ball, r.left, r.top, r.width(), r.height(), 0.02f)
+        for (r in blocks) bounceOffRect(ball, sx(r.left), sy(r.top), r.width() * scale, r.height() * scale, 0.02f)
     }
 
     private fun bounceOffRect(b: Ball, rx: Float, ry: Float, rw: Float, rh: Float, speedup: Float) {
@@ -145,7 +182,7 @@ class GreetingBackgroundView @JvmOverloads constructor(
             b.vy *= -1
             b.y += sign(dy.let { if (it == 0f) b.vy else it }) * (b.r + 1)
         }
-        val maxV = 2.1f * max(scaleX, scaleY)
+        val maxV = 2.1f * scale
         b.vx = clamp(b.vx * (1 + speedup), -maxV, maxV)
         b.vy = clamp(b.vy * (1 + speedup), -maxV, maxV)
     }
@@ -163,27 +200,33 @@ class GreetingBackgroundView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         paint.color = darkest
         canvas.drawRect(0f, 0f, bw, bh, paint)
-        val gridStepX = max(1f, 12 * scaleX)
-        val gridStepY = max(1f, 10 * scaleY)
+        val gridStepD = 10f
+        val lineD = 1f
         paint.color = dark
-        var y = 0f
-        while (y < bh) { canvas.drawRect(0f, y, bw, y + 1, paint); y += gridStepY }
-        var x = 0f
-        while (x < bw) { canvas.drawRect(x, 0f, x + 1, bh, paint); x += gridStepX }
-        paint.color = light
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 1f
-        canvas.drawRect(1f, 1f, bw - 1, bh - 1, paint)
+        var dx = (floor((-offsetX / scale) / gridStepD) * gridStepD).toFloat()
+        while (dx <= (bw - offsetX) / scale + gridStepD) {
+            val x0 = sx(dx).coerceIn(0f, bw)
+            val x1 = sx(dx + lineD).coerceIn(0f, bw)
+            if (x1 > x0) canvas.drawRect(x0, 0f, x1, bh, paint)
+            dx += gridStepD
+        }
+        var dy = (floor((-offsetY / scale) / gridStepD) * gridStepD).toFloat()
+        while (dy <= (bh - offsetY) / scale + gridStepD) {
+            val y0 = sy(dy).coerceIn(0f, bh)
+            val y1 = sy(dy + lineD).coerceIn(0f, bh)
+            if (y1 > y0) canvas.drawRect(0f, y0, bw, y1, paint)
+            dy += gridStepD
+        }
         paint.style = Paint.Style.FILL
         paint.color = dark
-        for (r in blocks) canvas.drawRect(r, paint)
+        for (r in blocks) canvas.drawRect(sx(r.left), sy(r.top), sx(r.right), sy(r.bottom), paint)
         paint.color = light
-        for (p in paddles) canvas.drawRect(p.x, p.y, p.x + p.w, p.y + p.h, paint)
+        for (p in paddles) canvas.drawRect(sx(p.x), sy(p.y), sx(p.x + p.w), sy(p.y + p.h), paint)
         paint.color = lightest
         canvas.drawCircle(ball.x, ball.y, ball.r, paint)
         paint.color = dark
-        val shimmerY = ((System.currentTimeMillis() / 45) % 12).toFloat() * gridStepY
-        canvas.drawRect(0f, shimmerY, bw, shimmerY + 1, paint)
+        val shimmerDy = ((System.currentTimeMillis() / 45) % 12).toFloat() * gridStepD
+        canvas.drawRect(sx(0f), sy(shimmerDy), sx(designW), sy(shimmerDy + lineD), paint)
     }
 
     private data class Ball(var x: Float, var y: Float, var vx: Float, var vy: Float, var r: Float)

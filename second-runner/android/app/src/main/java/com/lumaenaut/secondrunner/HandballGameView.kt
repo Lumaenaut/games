@@ -9,6 +9,7 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
@@ -36,14 +37,18 @@ class HandballGameView @JvmOverloads constructor(
     private val baseBallSpeed = 5f
     private val maxSpeedMultiplier = 2.5f
     private var currentSpeedMultiplier = 1f
-    private val designWidth = 400f
-    private val designHeight = 350f
-    private fun scaleX(x: Float) = x * width / designWidth
-    private fun scaleY(y: Float) = y * height / designHeight
-    private fun paddleWidth() = scaleX(10f)
-    private fun paddleHeight() = scaleY(80f)
-    private fun backX() = scaleX(10f)
-    private fun forwardX() = scaleX(28f)
+    private val designW = 400f
+    private val designH = 350f
+    private val paddleW = 10f
+    private val paddleH = 80f
+    private var scale = 1f
+    private var offsetX = 0f
+    private var offsetY = 0f
+    private fun sx(dx: Float) = offsetX + dx * scale
+    private fun sy(dy: Float) = offsetY + dy * scale
+    private fun toDesignY(ey: Float) = (ey - offsetY) / scale
+    private fun backX() = 10f
+    private fun forwardX() = 28f
     private var turn = true // true = player
     private var swapPending = false
 
@@ -53,7 +58,7 @@ class HandballGameView @JvmOverloads constructor(
     private var ballY = 0f
     private var ballDx = 0f
     private var ballDy = 0f
-    private fun ballRadius() = scaleX(5f)
+    private val ballRadiusD = 5f
     private var ballBaseSpeed = baseBallSpeed
     private var touchY = 0f
 
@@ -68,25 +73,28 @@ class HandballGameView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
+        scale = min(width / designW, height / designH)
+        offsetX = (width - designW * scale) / 2f
+        offsetY = (height - designH * scale) / 2f
         init()
     }
 
     private fun init() {
-        ballX = width / 2f
-        ballY = height / 2f
+        ballX = designW / 2f
+        ballY = designH / 2f
         rallyCount = 0
         currentSpeedMultiplier = 1f
         ballBaseSpeed = baseBallSpeed
         ballDx = baseBallSpeed
         ballDy = (Random.nextFloat() * 4f) - 2f
-        playerY = height / 2f - paddleHeight() / 2
-        computerY = height / 2f - paddleHeight() / 2
+        playerY = designH / 2f - paddleH / 2
+        computerY = designH / 2f - paddleH / 2
         touchY = playerY
     }
 
     private fun resetForNextRound(nextTurn: Boolean) {
-        ballX = width / 2f
-        ballY = height / 2f
+        ballX = designW / 2f
+        ballY = designH / 2f
         rallyCount = 0
         currentSpeedMultiplier = 1f
         ballBaseSpeed = baseBallSpeed
@@ -109,33 +117,31 @@ class HandballGameView @JvmOverloads constructor(
     }
 
     private fun update() {
-        val ph = paddleHeight()
-        playerY = touchY.coerceIn(0f, height - ph)
-        val computerTarget = if (gameRunning) ballY - ph / 2 else height / 2f - ph / 2
+        playerY = touchY.coerceIn(0f, designH - paddleH)
+        val computerTarget = if (gameRunning) ballY - paddleH / 2 else designH / 2f - paddleH / 2
         val computerSpeed = if (gameRunning) 4f else 2f
         when {
-            computerY + ph / 2 < computerTarget -> computerY += computerSpeed
-            computerY + ph / 2 > computerTarget -> computerY -= computerSpeed
+            computerY + paddleH / 2 < computerTarget -> computerY += computerSpeed
+            computerY + paddleH / 2 > computerTarget -> computerY -= computerSpeed
         }
-        computerY = computerY.coerceIn(0f, height - ph)
+        computerY = computerY.coerceIn(0f, designH - paddleH)
         ballX += ballDx
         ballY += ballDy
-        if (swapPending && ballDx > 0 && ballX >= width / 2f) {
+        if (swapPending && ballDx > 0 && ballX >= designW / 2f) {
             turn = !turn
             swapPending = false
         }
-        val r = ballRadius()
+        val r = ballRadiusD
         if (ballY - r < 0) { ballDy *= -1; ballY = r }
-        if (ballY + r > height) { ballDy *= -1; ballY = height - r }
-        if (ballX + r > width) { ballDx *= -1; ballX = width - r }
+        if (ballY + r > designH) { ballDy *= -1; ballY = designH - r }
+        if (ballX + r > designW) { ballDx *= -1; ballX = designW - r }
         val playerPaddleX = if (turn) forwardX() else backX()
         val compPaddleX = if (turn) backX() else forwardX()
         val activeX = if (turn) playerPaddleX else compPaddleX
         val activeY = if (turn) playerY else computerY
-        val pw = paddleWidth()
-        if (ballDx < 0 && ballX - r < activeX + pw && ballX + r > activeX &&
-            ballY > activeY && ballY < activeY + ph) {
-            val relY = (ballY - (activeY + ph / 2)) / (ph / 2)
+        if (ballDx < 0 && ballX - r < activeX + paddleW && ballX + r > activeX &&
+            ballY > activeY && ballY < activeY + paddleH) {
+            val relY = (ballY - (activeY + paddleH / 2)) / (paddleH / 2)
             val bounceAngle = relY * 0.8f
             ballDx = abs(ballDx)
             ballDy = bounceAngle * ballBaseSpeed
@@ -143,7 +149,7 @@ class HandballGameView @JvmOverloads constructor(
             updateDifficulty()
             swapPending = true
         }
-        if (ballX - ballRadius() < 0) {
+        if (ballX - ballRadiusD < 0) {
             val scorerIsPlayer = !turn
             if (scorerIsPlayer) playerScore++ else computerScore++
             scoreListener?.onScoreChanged(playerScore, computerScore)
@@ -156,51 +162,51 @@ class HandballGameView @JvmOverloads constructor(
     }
 
     override fun onDraw(canvas: Canvas) {
-        paint.color = lightest
+        paint.color = darkest
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+        paint.color = lightest
+        canvas.drawRect(sx(0f), sy(0f), sx(designW), sy(designH), paint)
         paint.color = light
         paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 2f
+        paint.strokeWidth = max(1f, 2f * scale)
         paint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(5f, 5f), 0f)
-        canvas.drawLine(0f, height / 2f, width.toFloat(), height / 2f, paint)
+        canvas.drawLine(sx(0f), sy(designH / 2f), sx(designW), sy(designH / 2f), paint)
         paint.pathEffect = null
         paint.color = dark
-        val wall = scaleX(5f)
-        canvas.drawRect(0f, 0f, width.toFloat(), wall, paint)
-        canvas.drawRect(width - wall, 0f, width.toFloat(), height.toFloat(), paint)
-        canvas.drawRect(0f, height - wall, width.toFloat(), height.toFloat(), paint)
+        val wallD = 5f
+        canvas.drawRect(sx(0f), sy(0f), sx(designW), sy(wallD), paint)
+        canvas.drawRect(sx(designW - wallD), sy(0f), sx(designW), sy(designH), paint)
+        canvas.drawRect(sx(0f), sy(designH - wallD), sx(designW), sy(designH), paint)
         paint.style = Paint.Style.FILL
         val playerPaddleX = if (turn) forwardX() else backX()
         val compPaddleX = if (turn) backX() else forwardX()
-        val pw = paddleWidth()
-        val ph = paddleHeight()
         paint.color = darkest
-        canvas.drawRect(playerPaddleX, playerY, playerPaddleX + pw, playerY + ph, paint)
+        canvas.drawRect(sx(playerPaddleX), sy(playerY), sx(playerPaddleX + paddleW), sy(playerY + paddleH), paint)
         paint.color = light
-        canvas.drawRect(compPaddleX, computerY, compPaddleX + pw, computerY + ph, paint)
+        canvas.drawRect(sx(compPaddleX), sy(computerY), sx(compPaddleX + paddleW), sy(computerY + paddleH), paint)
         paint.color = darkest
-        canvas.drawCircle(ballX, ballY, ballRadius(), paint)
+        canvas.drawCircle(sx(ballX), sy(ballY), ballRadiusD * scale, paint)
         if (gamePaused && !gameRunning || !gameRunning && !gamePaused) {
             paint.color = lightest
             paint.alpha = 230
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            canvas.drawRect(sx(0f), sy(0f), sx(designW), sy(designH), paint)
             paint.alpha = 255
             paint.color = darkest
             paint.textSize = 36f
             paint.textAlign = Paint.Align.CENTER
             when {
-                !gameRunning && !gamePaused -> canvas.drawText(getContext().getString(R.string.click_to_start_game), width / 2f, height / 2f, paint)
+                !gameRunning && !gamePaused -> canvas.drawText(getContext().getString(R.string.click_to_start_game), sx(designW / 2f), sy(designH / 2f), paint)
                 playerScore >= winningScore -> {
-                    canvas.drawText(getContext().getString(R.string.player_wins), width / 2f, height / 2f - 30, paint)
+                    canvas.drawText(getContext().getString(R.string.player_wins), sx(designW / 2f), sy(designH / 2f - 30), paint)
                     paint.textSize = 28f
-                    canvas.drawText(getContext().getString(R.string.click_for_next_match), width / 2f, height / 2f + 10, paint)
+                    canvas.drawText(getContext().getString(R.string.click_for_next_match), sx(designW / 2f), sy(designH / 2f + 10), paint)
                 }
                 computerScore >= winningScore -> {
-                    canvas.drawText(getContext().getString(R.string.computer_wins), width / 2f, height / 2f - 30, paint)
+                    canvas.drawText(getContext().getString(R.string.computer_wins), sx(designW / 2f), sy(designH / 2f - 30), paint)
                     paint.textSize = 28f
-                    canvas.drawText(getContext().getString(R.string.click_for_next_match), width / 2f, height / 2f + 10, paint)
+                    canvas.drawText(getContext().getString(R.string.click_for_next_match), sx(designW / 2f), sy(designH / 2f + 10), paint)
                 }
-                else -> canvas.drawText(getContext().getString(R.string.click_to_continue), width / 2f, height / 2f, paint)
+                else -> canvas.drawText(getContext().getString(R.string.click_to_continue), sx(designW / 2f), sy(designH / 2f), paint)
             }
         }
         if (gameRunning && rallyCount > 0) {
@@ -208,7 +214,7 @@ class HandballGameView @JvmOverloads constructor(
             paint.alpha = 128
             paint.textSize = 24f
             paint.textAlign = Paint.Align.RIGHT
-            canvas.drawText("Rally: $rallyCount x${String.format("%.1f", currentSpeedMultiplier)}", width - 20f, 30f, paint)
+            canvas.drawText("RALLY: $rallyCount x${String.format("%.1f", currentSpeedMultiplier)}", sx(designW - 20f), sy(30f), paint)
             paint.alpha = 255
         }
     }
@@ -216,9 +222,8 @@ class HandballGameView @JvmOverloads constructor(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                val ph = paddleHeight()
-                touchY = event.y - ph / 2
-                touchY = touchY.coerceIn(0f, height - ph)
+                touchY = toDesignY(event.y) - paddleH / 2
+                touchY = touchY.coerceIn(0f, designH - paddleH)
             }
             MotionEvent.ACTION_UP -> {
                 if (!gameRunning && !gamePaused) {

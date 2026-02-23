@@ -9,6 +9,7 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
@@ -35,9 +36,19 @@ class TennisGameView @JvmOverloads constructor(
     private val baseBallSpeed = 5f
     private val maxSpeedMultiplier = 2.5f
     private var currentSpeedMultiplier = 1f
+    private val designW = 600f
+    private val designH = 350f
     private val paddleWidth = 10f
     private val paddleHeight = 80f
     private val baseComputerSpeed = 4f
+
+    private var scale = 1f
+    private var offsetX = 0f
+    private var offsetY = 0f
+    private fun sx(dx: Float) = offsetX + dx * scale
+    private fun sy(dy: Float) = offsetY + dy * scale
+    private fun toDesignY(ey: Float) = (ey - offsetY) / scale
+    private fun toDesignX(ex: Float) = (ex - offsetX) / scale
 
     private var playerY = 0f
     private var computerY = 0f
@@ -60,25 +71,28 @@ class TennisGameView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
+        scale = min(width / designW, height / designH)
+        offsetX = (width - designW * scale) / 2f
+        offsetY = (height - designH * scale) / 2f
         init()
     }
 
     private fun init() {
-        ballX = width / 2f
-        ballY = height / 2f
+        ballX = designW / 2f
+        ballY = designH / 2f
         rallyCount = 0
         currentSpeedMultiplier = 1f
         ballBaseSpeed = baseBallSpeed
         ballDx = if (Random.nextBoolean()) baseBallSpeed else -baseBallSpeed
         ballDy = (Random.nextFloat() * 4f) - 2f
-        playerY = height / 2f - paddleHeight / 2
-        computerY = height / 2f - paddleHeight / 2
+        playerY = designH / 2f - paddleHeight / 2
+        computerY = designH / 2f - paddleHeight / 2
         touchY = playerY
     }
 
     private fun resetForNextMatch() {
-        ballX = width / 2f
-        ballY = height / 2f
+        ballX = designW / 2f
+        ballY = designH / 2f
         rallyCount = 0
         currentSpeedMultiplier = 1f
         ballBaseSpeed = baseBallSpeed
@@ -99,18 +113,18 @@ class TennisGameView @JvmOverloads constructor(
     }
 
     private fun update() {
-        playerY = (touchY).coerceIn(0f, height - paddleHeight)
+        playerY = touchY.coerceIn(0f, designH - paddleHeight)
         val computerCenter = computerY + paddleHeight / 2
         val computerSpeed = baseComputerSpeed * (1 + (currentSpeedMultiplier - 1) * 0.5f)
         when {
             computerCenter < ballY - 10 -> computerY += computerSpeed
             computerCenter > ballY + 10 -> computerY -= computerSpeed
         }
-        computerY = computerY.coerceIn(0f, height - paddleHeight)
+        computerY = computerY.coerceIn(0f, designH - paddleHeight)
 
         ballX += ballDx
         ballY += ballDy
-        if (ballY - ballRadius < 0 || ballY + ballRadius > height) ballDy *= -1
+        if (ballY - ballRadius < 0 || ballY + ballRadius > designH) ballDy *= -1
         if (ballX - ballRadius < 10 + paddleWidth && ballX + ballRadius > 10 &&
             ballY > playerY && ballY < playerY + paddleHeight) {
             val relY = (ballY - (playerY + paddleHeight / 2)) / (paddleHeight / 2)
@@ -120,7 +134,7 @@ class TennisGameView @JvmOverloads constructor(
             if (abs(ballDy) < 1.5f) ballDy = if (ballDy > 0) 1.5f else -1.5f
             updateDifficulty()
         }
-        if (ballX + ballRadius > width - paddleWidth - 10 && ballX - ballRadius < width - 10 &&
+        if (ballX + ballRadius > designW - paddleWidth - 10 && ballX - ballRadius < designW - 10 &&
             ballY > computerY && ballY < computerY + paddleHeight) {
             val relY = (ballY - (computerY + paddleHeight / 2)) / (paddleHeight / 2)
             val bounceAngle = relY * 0.8f
@@ -136,7 +150,7 @@ class TennisGameView @JvmOverloads constructor(
                 checkWin()
                 if (!gamePaused) resetForNextMatch()
             }
-            ballX + ballRadius > width -> {
+            ballX + ballRadius > designW -> {
                 playerScore++
                 scoreListener?.onScoreChanged(playerScore, computerScore)
                 checkWin()
@@ -153,56 +167,58 @@ class TennisGameView @JvmOverloads constructor(
     }
 
     override fun onDraw(canvas: Canvas) {
-        paint.color = lightest
+        paint.color = darkest
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+        paint.color = lightest
+        canvas.drawRect(sx(0f), sy(0f), sx(designW), sy(designH), paint)
         paint.color = dark
         paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 2f
+        paint.strokeWidth = max(1f, 2f * scale)
         paint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(5f, 5f), 0f)
-        canvas.drawLine(width / 2f, 0f, width / 2f, height.toFloat(), paint)
+        canvas.drawLine(sx(designW / 2f), sy(0f), sx(designW / 2f), sy(designH), paint)
         paint.pathEffect = null
         paint.style = Paint.Style.FILL
         paint.color = darkest
-        canvas.drawRect(10f, playerY, 10 + paddleWidth, playerY + paddleHeight, paint)
-        canvas.drawRect(width - 10 - paddleWidth, computerY, width - 10f, computerY + paddleHeight, paint)
-        canvas.drawCircle(ballX, ballY, ballRadius, paint)
+        canvas.drawRect(sx(10f), sy(playerY), sx(10 + paddleWidth), sy(playerY + paddleHeight), paint)
+        canvas.drawRect(sx(designW - 10 - paddleWidth), sy(computerY), sx(designW - 10f), sy(computerY + paddleHeight), paint)
+        canvas.drawCircle(sx(ballX), sy(ballY), ballRadius * scale, paint)
         if (gamePaused && !gameRunning) {
             paint.color = lightest
             paint.alpha = 230
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            canvas.drawRect(sx(0f), sy(0f), sx(designW), sy(designH), paint)
             paint.alpha = 255
             paint.color = darkest
             paint.textSize = 36f
             paint.textAlign = Paint.Align.CENTER
             when {
                 playerScore >= winningScore -> {
-                    canvas.drawText(getContext().getString(R.string.player_wins), width / 2f, height / 2f - 30, paint)
+                    canvas.drawText(getContext().getString(R.string.player_wins), sx(designW / 2f), sy(designH / 2f - 30), paint)
                     paint.textSize = 28f
-                    canvas.drawText(getContext().getString(R.string.click_for_next_match), width / 2f, height / 2f + 10, paint)
+                    canvas.drawText(getContext().getString(R.string.click_for_next_match), sx(designW / 2f), sy(designH / 2f + 10), paint)
                 }
                 computerScore >= winningScore -> {
-                    canvas.drawText(getContext().getString(R.string.computer_wins), width / 2f, height / 2f - 30, paint)
+                    canvas.drawText(getContext().getString(R.string.computer_wins), sx(designW / 2f), sy(designH / 2f - 30), paint)
                     paint.textSize = 28f
-                    canvas.drawText(getContext().getString(R.string.click_for_next_match), width / 2f, height / 2f + 10, paint)
+                    canvas.drawText(getContext().getString(R.string.click_for_next_match), sx(designW / 2f), sy(designH / 2f + 10), paint)
                 }
-                else -> canvas.drawText(getContext().getString(R.string.click_to_continue), width / 2f, height / 2f, paint)
+                else -> canvas.drawText(getContext().getString(R.string.click_to_continue), sx(designW / 2f), sy(designH / 2f), paint)
             }
         } else if (!gameRunning && !gamePaused) {
             paint.color = lightest
             paint.alpha = 230
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            canvas.drawRect(sx(0f), sy(0f), sx(designW), sy(designH), paint)
             paint.alpha = 255
             paint.color = darkest
             paint.textSize = 36f
             paint.textAlign = Paint.Align.CENTER
-            canvas.drawText(getContext().getString(R.string.click_to_start_game), width / 2f, height / 2f, paint)
+            canvas.drawText(getContext().getString(R.string.click_to_start_game), sx(designW / 2f), sy(designH / 2f), paint)
         }
         if (gameRunning && rallyCount > 0) {
             paint.color = darkest
             paint.alpha = 128
             paint.textSize = 24f
             paint.textAlign = Paint.Align.RIGHT
-            canvas.drawText("Rally: $rallyCount x${String.format("%.1f", currentSpeedMultiplier)}", width - 20f, 30f, paint)
+            canvas.drawText("RALLY: $rallyCount x${String.format("%.1f", currentSpeedMultiplier)}", sx(designW - 20f), sy(30f), paint)
             paint.alpha = 255
         }
     }
@@ -210,8 +226,8 @@ class TennisGameView @JvmOverloads constructor(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                touchY = event.y - paddleHeight / 2
-                touchY = touchY.coerceIn(0f, height - paddleHeight)
+                touchY = toDesignY(event.y) - paddleHeight / 2
+                touchY = touchY.coerceIn(0f, designH - paddleHeight)
             }
             MotionEvent.ACTION_UP -> {
                 if (!gameRunning && !gamePaused) {
