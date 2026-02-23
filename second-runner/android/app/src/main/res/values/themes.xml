@@ -8,7 +8,8 @@
         <item name="android:navigationBarColor">@color/darkest</item>
     </style>
     <style name="Widget.SecondRunner.GameButton" parent="Widget.MaterialComponents.Button">
-        <item name="android:background">@color/lightest</item>
+        <item name="android:background">@drawable/bg_game_button_chunky</item>
+        <item name="backgroundTint">@null</item>
         <item name="android:textColor">@color/darkest</item>
         <item name="android:padding">20dp</item>
         <item name="android:textSize">18sp</item>

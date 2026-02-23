@@ -8,17 +8,17 @@
     <fragment
         android:id="@+id/welcomeFragment"
         android:name="com.lumaenaut.secondrunner.WelcomeFragment"
-        android:label="Second Runner"
+        android:label="SECOND RUNNER"
         tools:layout="@layout/fragment_welcome" />
     <fragment
         android:id="@+id/mainMenuFragment"
         android:name="com.lumaenaut.secondrunner.MainMenuFragment"
-        android:label="Main Menu"
+        android:label="MAIN MENU"
         tools:layout="@layout/fragment_main_menu" />
     <fragment
         android:id="@+id/gameFragment"
         android:name="com.lumaenaut.secondrunner.GameFragment"
-        android:label="Game"
+        android:label="GAME"
         tools:layout="@layout/fragment_game">
         <argument
             android:name="gameType"

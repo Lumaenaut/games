@@ -171,7 +171,7 @@ function draw() {
       const winnerText = playerScore >= winningScore ? 'PLAYER WINS!' : 'COMPUTER WINS!';
       ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 30);
       ctx.font = '16px system-ui, sans-serif';
-      ctx.fillText('Click for next match', canvas.width / 2, canvas.height / 2 + 10);
+      ctx.fillText('CLICK FOR NEXT MATCH', canvas.width / 2, canvas.height / 2 + 10);
     } else {
       ctx.fillText('CLICK TO CONTINUE', canvas.width / 2, canvas.height / 2);
     }
@@ -193,7 +193,7 @@ function draw() {
     ctx.globalAlpha = 0.5;
     ctx.font = '12px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(`Rally: ${rallyCount} x${currentSpeedMultiplier.toFixed(1)}`, canvas.width - 20, 30);
+    ctx.fillText(`RALLY: ${rallyCount} X${currentSpeedMultiplier.toFixed(1)}`, canvas.width - 20, 30);
     ctx.globalAlpha = 1;
   }
 }

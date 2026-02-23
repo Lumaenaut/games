@@ -35,8 +35,9 @@ class GreetingBackgroundView @JvmOverloads constructor(
     private var offsetX = 0f
     private var offsetY = 0f
 
-    /** Ball in screen space (pixels) so it can bounce off display edges. */
+    /** Two balls in screen space (pixels); different speeds and directions for variety. */
     private val ball = Ball(0f, 0f, 0.9f, 0.7f, 2f)
+    private val ball2 = Ball(0f, 0f, -0.85f, -0.6f, 2f)
     private val railXLeft = 16f
     private val railXRight = designW - 16f
 
@@ -94,6 +95,11 @@ class GreetingBackgroundView @JvmOverloads constructor(
         ball.y = offsetY + designH * 0.35f * scale
         ball.vx = 0.95f * scale
         ball.vy = 0.75f * scale
+        ball2.r = 2f * scale
+        ball2.x = offsetX + designW * 0.6f * scale
+        ball2.y = offsetY + designH * 0.6f * scale
+        ball2.vx = -0.85f * scale
+        ball2.vy = -0.6f * scale
         leftOuterPaddleX = ((-offsetX / scale) + railXLeft) / 2f
         rightOuterPaddleX = (railXRight + (bw - offsetX) / scale) / 2f
         paddles[0].x = 6f
@@ -151,12 +157,6 @@ class GreetingBackgroundView @JvmOverloads constructor(
     }
 
     private fun stepPhysics(dt: Float) {
-        ball.x += ball.vx * dt
-        ball.y += ball.vy * dt
-        if (ball.x < ball.r) { ball.x = ball.r; ball.vx *= -1 }
-        if (ball.x > bw - ball.r) { ball.x = bw - ball.r; ball.vx *= -1 }
-        if (ball.y < ball.r) { ball.y = ball.r; ball.vy *= -1 }
-        if (ball.y > bh - ball.r) { ball.y = bh - ball.r; ball.vy *= -1 }
         paddles[1].x = designW - (strokeD + 5f)
         paddles[2].x = leftOuterPaddleX
         paddles[3].x = rightOuterPaddleX
@@ -164,9 +164,17 @@ class GreetingBackgroundView @JvmOverloads constructor(
             p.y += p.vy * dt
             if (p.y < 8f) { p.y = 8f; p.vy *= -1 }
             if (p.y > designH - 8f - p.h) { p.y = designH - 8f - p.h; p.vy *= -1 }
-            bounceOffRect(ball, sx(p.x), sy(p.y), p.w * scale, p.h * scale, 0.06f)
         }
-        for (r in blocks) bounceOffRect(ball, sx(r.left), sy(r.top), r.width() * scale, r.height() * scale, 0.02f)
+        for (b in listOf(ball, ball2)) {
+            b.x += b.vx * dt
+            b.y += b.vy * dt
+            if (b.x < b.r) { b.x = b.r; b.vx *= -1 }
+            if (b.x > bw - b.r) { b.x = bw - b.r; b.vx *= -1 }
+            if (b.y < b.r) { b.y = b.r; b.vy *= -1 }
+            if (b.y > bh - b.r) { b.y = bh - b.r; b.vy *= -1 }
+            for (p in paddles) bounceOffRect(b, sx(p.x), sy(p.y), p.w * scale, p.h * scale, 0.06f)
+            for (r in blocks) bounceOffRect(b, sx(r.left), sy(r.top), r.width() * scale, r.height() * scale, 0.02f)
+        }
     }
 
     private fun bounceOffRect(b: Ball, rx: Float, ry: Float, rw: Float, rh: Float, speedup: Float) {
@@ -201,7 +209,7 @@ class GreetingBackgroundView @JvmOverloads constructor(
         paint.color = darkest
         canvas.drawRect(0f, 0f, bw, bh, paint)
         val gridStepD = 10f
-        val lineD = 1f
+        val lineD = 0.4f  // Grid line thickness in design units (thinner)
         paint.color = dark
         var dx = (floor((-offsetX / scale) / gridStepD) * gridStepD).toFloat()
         while (dx <= (bw - offsetX) / scale + gridStepD) {
@@ -224,6 +232,7 @@ class GreetingBackgroundView @JvmOverloads constructor(
         for (p in paddles) canvas.drawRect(sx(p.x), sy(p.y), sx(p.x + p.w), sy(p.y + p.h), paint)
         paint.color = lightest
         canvas.drawCircle(ball.x, ball.y, ball.r, paint)
+        canvas.drawCircle(ball2.x, ball2.y, ball2.r, paint)
         paint.color = dark
         val shimmerDy = ((System.currentTimeMillis() / 45) % 12).toFloat() * gridStepD
         canvas.drawRect(sx(0f), sy(shimmerDy), sx(designW), sy(shimmerDy + lineD), paint)

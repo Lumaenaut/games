@@ -27,7 +27,7 @@
                 android:layout_height="wrap_content"
                 android:textColor="@color/lightest"
                 android:fontFamily="monospace"
-                tools:text="Player: 0" />
+                tools:text="PLAYER: 0" />
 
             <TextView
                 android:id="@+id/computerScore"
@@ -36,7 +36,7 @@
                 android:layout_marginStart="16dp"
                 android:textColor="@color/lightest"
                 android:fontFamily="monospace"
-                tools:text="Computer: 0" />
+                tools:text="COMPUTER: 0" />
         </LinearLayout>
 
         <Button
@@ -64,5 +64,5 @@
         android:textColor="@color/light"
         android:textSize="14sp"
         android:fontFamily="monospace"
-        tools:text="Move finger up/down to control the paddle" />
+        tools:text="MOVE FINGER UP/DOWN TO CONTROL THE PADDLE" />
 </LinearLayout>

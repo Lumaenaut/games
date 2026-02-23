@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chunky arcade-style button: offset shadow blocks + main face (matches Chrome main-menu box-shadow). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Outer shadow block: only visible on bottom and right (14dp offset) -->
+    <item android:left="14dp" android:top="14dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/dark" />
+        </shape>
+    </item>
+    <!-- Inner shadow block: only visible on bottom and right (10dp offset) -->
+    <item android:left="10dp" android:top="10dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/darkest" />
+        </shape>
+    </item>
+    <!-- Main face on top: lightest with dark border; shadow shows only below and right -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/lightest" />
+            <stroke android:width="4dp" android:color="@color/dark" />
+        </shape>
+    </item>
+</layer-list>

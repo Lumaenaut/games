@@ -77,6 +77,48 @@ function getThemeColors() {
 const theme = getThemeColors();
 
 /**
+ * Resumes from pause or starts a new game. If resuming after a win, resets
+ * scores and calls init() before setting gameRunning.
+ */
+function startOrContinueGame() {
+  // Case 1: We were paused (e.g. "CLICK TO CONTINUE" or "Click for next match").
+  if (gamePaused) {
+    gamePaused = false;
+    if (playerScore >= winningScore || computerScore >= winningScore) {
+      playerScore = 0;
+      computerScore = 0;
+      updateScore();
+      init();
+    }
+
+    gameRunning = true;
+    return;
+  }
+
+  // Case 2: Game not running and not paused — start screen ("CLICK TO START").
+  if (!gameRunning && !gamePaused) {
+    // If we had a previous win and never reset, clear scores before starting.
+    if (playerScore >= winningScore || computerScore >= winningScore) {
+
+      playerScore = 0;
+      computerScore = 0;
+      updateScore();
+    }
+    gameRunning = true;
+    gamePaused = false;
+    init();
+  }
+}
+
+/**
+ * Writes current player and computer scores to the DOM elements.
+ */
+function updateScore() {
+  document.getElementById('player-score').textContent = playerScore;
+  document.getElementById('computer-score').textContent = computerScore;
+}
+
+/**
  * Resets ball to center and gives it a random horizontal direction and slight
  * vertical variation. Resets rally count and applies INITIAL_SPEED_MULTIPLIER.
  */
@@ -93,90 +135,14 @@ function init() {
 }
 
 /**
- * Draws the court (background, center line), paddles, ball, and overlays.
- * Overlays: pause (winner or "CLICK TO CONTINUE"), start ("CLICK TO START"),
- * and when running a rally counter with speed multiplier in the top-right.
+ * RequestAnimationFrame loop: update when game is running, then draw every frame.
  */
-function draw() {
-  ctx.fillStyle = theme.lightest;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Center line (dashed).
-  ctx.strokeStyle = theme.dark;
-  ctx.setLineDash([5, 5]);
-  ctx.beginPath();
-  ctx.moveTo(canvas.width / 2, 0);
-  ctx.lineTo(canvas.width / 2, canvas.height);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Player (left) and computer (right) paddles.
-  ctx.fillStyle = theme.darkest;
-  ctx.fillRect(10, mouseY, PADDLE_WIDTH, PADDLE_HEIGHT);
-  ctx.fillRect(canvas.width - PADDLE_WIDTH - 10, computerY, PADDLE_WIDTH, PADDLE_HEIGHT);
-
-  // Ball.
-  ctx.beginPath();
-  ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-  ctx.fillStyle = theme.darkest;
-  ctx.fill();
-
-  // Pause overlay: winner text or "CLICK TO CONTINUE".
-  if (gamePaused && !gameRunning) {
-    ctx.fillStyle = theme.lightest;
-    ctx.globalAlpha = 0.9;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = theme.darkest;
-    ctx.font = 'bold 20px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-
-    if (playerScore >= winningScore || computerScore >= winningScore) {
-
-      const winnerText = playerScore >= winningScore ? 'PLAYER WINS!' : 'COMPUTER WINS!';
-      ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 30);
-      ctx.font = '16px system-ui, sans-serif';
-      ctx.fillText('Click for next match', canvas.width / 2, canvas.height / 2 + 10);
-    } else {
-
-      ctx.fillText('CLICK TO CONTINUE', canvas.width / 2, canvas.height / 2);
-    }
-  } else if (!gameRunning && !gamePaused) {
-    // Start overlay: "CLICK TO START".
-    ctx.fillStyle = theme.lightest;
-    ctx.globalAlpha = 0.9;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = theme.darkest;
-    ctx.font = 'bold 20px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('CLICK TO START', canvas.width / 2, canvas.height / 2);
+function gameLoop() {
+  if (gameRunning) {
+    update();
   }
-
-  // Rally counter and speed multiplier (subtle, top-right) when game is running.
-  if (gameRunning && rallyCount > 0) {
-    ctx.fillStyle = theme.darkest;
-    ctx.globalAlpha = 0.5;
-    ctx.font = '12px monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText(`Rally: ${rallyCount} x${currentSpeedMultiplier.toFixed(1)}`, canvas.width - 20, 30);
-    ctx.globalAlpha = 1;
-  }
-}
-
-/**
- * Increases rally count, bumps speed multiplier (no cap), and applies it to ball
- * velocity while preserving direction. Base is INITIAL_SPEED_MULTIPLIER so first
- * hit doesn't drop speed. Called on each paddle hit.
- */
-function updateDifficulty() {
-  rallyCount++;
-  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER + (Math.floor(rallyCount / 2) * 0.1);
-  const directionX = ball.dx > 0 ? 1 : -1;
-  const directionY = ball.dy > 0 ? 1 : -1;
-  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
-  ball.dx = directionX * ball.baseSpeed;
-  ball.dy = Math.abs(ball.dy) * directionY;
+  draw();
+  animationFrame = requestAnimationFrame(gameLoop);
 }
 
 /**
@@ -266,6 +232,93 @@ function update() {
 }
 
 /**
+ * Draws the court (background, center line), paddles, ball, and overlays.
+ * Overlays: pause (winner or "CLICK TO CONTINUE"), start ("CLICK TO START"),
+ * and when running a rally counter with speed multiplier in the top-right.
+ */
+function draw() {
+  ctx.fillStyle = theme.lightest;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Center line (dashed).
+  ctx.strokeStyle = theme.dark;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(canvas.width / 2, 0);
+  ctx.lineTo(canvas.width / 2, canvas.height);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Player (left) and computer (right) paddles.
+  ctx.fillStyle = theme.darkest;
+  ctx.fillRect(10, mouseY, PADDLE_WIDTH, PADDLE_HEIGHT);
+  ctx.fillRect(canvas.width - PADDLE_WIDTH - 10, computerY, PADDLE_WIDTH, PADDLE_HEIGHT);
+
+  // Ball.
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+  ctx.fillStyle = theme.darkest;
+  ctx.fill();
+
+  // Pause overlay: winner text or "CLICK TO CONTINUE".
+  if (gamePaused && !gameRunning) {
+    ctx.fillStyle = theme.lightest;
+    ctx.globalAlpha = 0.9;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = theme.darkest;
+    ctx.font = 'bold 20px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+
+    if (playerScore >= winningScore || computerScore >= winningScore) {
+
+      const winnerText = playerScore >= winningScore ? 'PLAYER WINS!' : 'COMPUTER WINS!';
+      ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 30);
+      ctx.font = '16px system-ui, sans-serif';
+      ctx.fillText('CLICK FOR NEXT MATCH', canvas.width / 2, canvas.height / 2 + 10);
+    } else {
+
+      ctx.fillText('CLICK TO CONTINUE', canvas.width / 2, canvas.height / 2);
+    }
+  } else if (!gameRunning && !gamePaused) {
+    // Start overlay: "CLICK TO START".
+    ctx.fillStyle = theme.lightest;
+    ctx.globalAlpha = 0.9;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = theme.darkest;
+    ctx.font = 'bold 20px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('CLICK TO START', canvas.width / 2, canvas.height / 2);
+  }
+
+  // Rally counter and speed multiplier (subtle, top-right) when game is running.
+  if (gameRunning && rallyCount > 0) {
+    ctx.fillStyle = theme.darkest;
+    ctx.globalAlpha = 0.5;
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(`RALLY: ${rallyCount} X${currentSpeedMultiplier.toFixed(1)}`, canvas.width - 20, 30);
+    ctx.globalAlpha = 1;
+  }
+}
+
+/**
+ * Increases rally count, bumps speed multiplier (no cap), and applies it to ball
+ * velocity while preserving direction. Base is INITIAL_SPEED_MULTIPLIER so first
+ * hit doesn't drop speed. Called on each paddle hit.
+ */
+function updateDifficulty() {
+  rallyCount++;
+  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER + (Math.floor(rallyCount / 2) * 0.1);
+  const directionX = ball.dx > 0 ? 1 : -1;
+  const directionY = ball.dy > 0 ? 1 : -1;
+  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
+  ball.dx = directionX * ball.baseSpeed;
+  ball.dy = Math.abs(ball.dy) * directionY;
+}
+
+/**
  * Stops the game and shows win overlay when either side reaches winningScore.
  */
 function checkWinCondition() {
@@ -273,14 +326,6 @@ function checkWinCondition() {
     gameRunning = false;
     gamePaused = true;
   }
-}
-
-/**
- * Writes current player and computer scores to the DOM elements.
- */
-function updateScore() {
-  document.getElementById('player-score').textContent = playerScore;
-  document.getElementById('computer-score').textContent = computerScore;
 }
 
 /**
@@ -300,47 +345,6 @@ function resetForNextMatch() {
 
   gameRunning = false;
   gamePaused = true;
-}
-
-/**
- * RequestAnimationFrame loop: update when game is running, then draw every frame.
- */
-function gameLoop() {
-  if (gameRunning) {
-    update();
-  }
-  draw();
-  animationFrame = requestAnimationFrame(gameLoop);
-}
-
-/**
- * Resumes from pause or starts a new game. If resuming after a win, resets
- * scores and calls init() before setting gameRunning.
- */
-function startOrContinueGame() {
-  
-  if (gamePaused) {
-    gamePaused = false;
-    if (playerScore >= winningScore || computerScore >= winningScore) {
-
-      playerScore = 0;
-      computerScore = 0;
-      updateScore();
-      init();
-    }
-
-    gameRunning = true;
-  } else if (!gameRunning && !gamePaused) {
-
-    if (playerScore >= winningScore || computerScore >= winningScore) {
-      playerScore = 0;
-      computerScore = 0;
-      updateScore();
-    }
-    gameRunning = true;
-    gamePaused = false;
-    init();
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -375,11 +379,11 @@ document.getElementById('back-button').addEventListener('click', () => {
   window.location.href = '../../popup/main-menu.html';
 });
 
-init();
-gameLoop();
-
 window.addEventListener('unload', () => {
   if (animationFrame) {
     cancelAnimationFrame(animationFrame);
   }
 });
+
+init();
+gameLoop();
