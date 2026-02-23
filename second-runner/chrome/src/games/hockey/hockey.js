@@ -1,7 +1,23 @@
+/**
+ * hockey.js
+ * Single-player hockey: player and computer each control a goalie and a forward
+ * paddle; puck bounces off top/bottom walls and off goal zones on the sides;
+ * middle of each side is the goal. First to winningScore wins. Difficulty
+ * (puck and computer speed) increases with rally count and starts at
+ * rally count. Click to start/continue; back button returns to main menu.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Canvas and DOM                                                             */
+/* -------------------------------------------------------------------------- */
+
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 
-// Game state and scores.
+/* -------------------------------------------------------------------------- */
+/* Game state and scores                                                      */
+/* -------------------------------------------------------------------------- */
+
 let gameRunning = false;
 let gamePaused = false;
 let animationFrame;
@@ -9,17 +25,23 @@ let playerScore = 0;
 let computerScore = 0;
 let winningScore = 5;
 
-// Rally-based difficulty (same as tennis).
+/* -------------------------------------------------------------------------- */
+/* Rally-based difficulty (same pattern as tennis)                             */
+/* -------------------------------------------------------------------------- */
+
 let rallyCount = 0;
 const BASE_PUCK_SPEED = 5;
-const MAX_SPEED_MULTIPLIER = 2.5;
 let currentSpeedMultiplier = 1;
+
+/* -------------------------------------------------------------------------- */
+/* Paddles and puck                                                            */
+/* -------------------------------------------------------------------------- */
 
 const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 40;
 const BASE_COMPUTER_SPEED = 4;
 
-// Player controls both goalie (left) and forward (right) with same Y; computer mirrors on the other side.
+// Player controls goalie and forward with same Y; computer mirrors on the other side.
 let playerY = canvas.height / 2 - PADDLE_HEIGHT / 2;
 const PLAYER_GOALIE_X = 40;
 const COMPUTER_GOALIE_X = canvas.width - PADDLE_WIDTH - 40;
@@ -46,7 +68,14 @@ let puck = {
 let mouseY = canvas.height / 2 - PADDLE_HEIGHT / 2;
 let mouseInsideCanvas = false;
 
-/** Resets puck to center with random direction and resets difficulty. */
+/* -------------------------------------------------------------------------- */
+/* Init and reset                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Resets puck to center with random horizontal direction and resets difficulty.
+ * Called on first load and when starting a new match after a win.
+ */
 function init() {
   puck.x = canvas.width / 2;
   puck.y = canvas.height / 2;
@@ -57,8 +86,10 @@ function init() {
   puck.dy = (Math.random() * 4) - 2;
 }
 
-
-/** Resets puck and difficulty for next point; pauses until click. */
+/**
+ * Resets puck and difficulty for the next point; pauses until user clicks.
+ * Used after a goal; overlay is drawn until click.
+ */
 function resetForNextMatch() {
   puck.x = canvas.width / 2;
   puck.y = canvas.height / 2;
@@ -71,7 +102,16 @@ function resetForNextMatch() {
   gamePaused = true;
 }
 
-/** Reads the 4-color greyscale palette from CSS custom properties. */
+/* -------------------------------------------------------------------------- */
+/* Theme and drawing                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Reads the four-color greyscale palette from CSS custom properties.
+ * Fallbacks used if theme does not define --darkest, --dark, --light, --lightest.
+ *
+ * @returns {{ darkest: string, dark: string, light: string, lightest: string }}
+ */
 function getThemeColors() {
   const s = getComputedStyle(document.documentElement);
   return {
@@ -83,7 +123,10 @@ function getThemeColors() {
 }
 const theme = getThemeColors();
 
-/** Draws rink (center line, blue lines, bounce zones), four paddles, puck, and overlays. */
+/**
+ * Draws the rink (background, center line, blue lines, bounce zones), four
+ * paddles, puck, and overlays (pause, start, win, rally counter).
+ */
 function draw() {
   ctx.fillStyle = theme.lightest;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -108,7 +151,7 @@ function draw() {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Bounce zones on side walls (top and bottom segments).
+  // Bounce zones on side walls (top and bottom segments; middle is goal).
   ctx.strokeStyle = theme.dark;
   ctx.lineWidth = 2;
   ctx.strokeRect(0, 0, 5, BOUNCE_ZONE_TOP);
@@ -117,7 +160,7 @@ function draw() {
   ctx.strokeRect(canvas.width - 5, canvas.height - BOUNCE_ZONE_BOTTOM, 5, BOUNCE_ZONE_BOTTOM);
   ctx.lineWidth = 1;
 
-  // Four paddles: player goalie/forward, computer goalie/forward.
+  // Four paddles: player goalie and forward, computer goalie and forward.
   ctx.fillStyle = theme.darkest;
   ctx.fillRect(PLAYER_GOALIE_X, playerY, PADDLE_WIDTH, PADDLE_HEIGHT);
   ctx.fillRect(PLAYER_FORWARD_X, playerY, PADDLE_WIDTH, PADDLE_HEIGHT);
@@ -130,7 +173,7 @@ function draw() {
   ctx.fillStyle = theme.darkest;
   ctx.fill();
 
-  // Pause overlay.
+  // Pause overlay: winner text or "CLICK TO CONTINUE".
   if (gamePaused && !gameRunning) {
     ctx.fillStyle = theme.lightest;
     ctx.globalAlpha = 0.9;
@@ -151,7 +194,7 @@ function draw() {
       ctx.fillText('CLICK TO CONTINUE', canvas.width / 2, canvas.height / 2);
     }
   } else if (!gameRunning && !gamePaused) {
-    // Start overlay.
+    // Start overlay: "CLICK TO START".
     ctx.fillStyle = theme.lightest;
     ctx.globalAlpha = 0.9;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -162,6 +205,7 @@ function draw() {
     ctx.fillText('CLICK TO START', canvas.width / 2, canvas.height / 2);
   }
 
+  // Rally counter and speed multiplier (top-right) when game is running.
   if (gameRunning && rallyCount > 0) {
     ctx.fillStyle = theme.darkest;
     ctx.globalAlpha = 0.5;
@@ -172,11 +216,17 @@ function draw() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Difficulty and physics                                                      */
+/* -------------------------------------------------------------------------- */
 
-/** Bumps rally count and speed multiplier, applies to puck velocity (same pattern as tennis). */
+/**
+ * Bumps rally count and speed multiplier (no cap), applies to puck velocity
+ * while preserving direction. Called on each paddle deflection.
+ */
 function updateDifficulty() {
   rallyCount++;
-  currentSpeedMultiplier = Math.min(1 + (Math.floor(rallyCount / 2) * 0.1), MAX_SPEED_MULTIPLIER);
+  currentSpeedMultiplier = 1 + (Math.floor(rallyCount / 2) * 0.1);
   const directionX = puck.dx > 0 ? 1 : -1;
   const directionY = puck.dy > 0 ? 1 : -1;
   puck.baseSpeed = BASE_PUCK_SPEED * currentSpeedMultiplier;
@@ -184,7 +234,18 @@ function updateDifficulty() {
   puck.dy = Math.abs(puck.dy) * directionY;
 }
 
-/** If puck overlaps paddle: when allowDeflection is true, bounce and increase difficulty; else no effect. Returns true if collision occurred. */
+/**
+ * If puck overlaps the given paddle rect: when allowDeflection is true, bounce
+ * and call updateDifficulty(); otherwise no effect (forward only deflects when
+ * puck is moving toward our goal). Returns true if a collision occurred.
+ *
+ * @param {number} paddleX - Left edge of paddle.
+ * @param {number} paddleY - Top edge of paddle.
+ * @param {number} paddleWidth - Paddle width.
+ * @param {number} paddleHeight - Paddle height.
+ * @param {boolean} [allowDeflection=true] - If false, overlap is ignored for deflection.
+ * @returns {boolean}
+ */
 function checkPaddleCollision(paddleX, paddleY, paddleWidth, paddleHeight, allowDeflection = true) {
   if (puck.x + puck.radius > paddleX &&
       puck.x - puck.radius < paddleX + paddleWidth &&
@@ -193,6 +254,8 @@ function checkPaddleCollision(paddleX, paddleY, paddleWidth, paddleHeight, allow
     if (!allowDeflection) {
       return false;
     }
+    // Remember which face we hit so we can resolve position and avoid getting stuck inside the paddle.
+    const wasMovingRight = puck.dx > 0;
     const relativeIntersectY = (puck.y - (paddleY + paddleHeight/2)) / (paddleHeight/2);
     const bounceAngle = relativeIntersectY * 0.8;
     puck.dx = -puck.dx;
@@ -200,19 +263,28 @@ function checkPaddleCollision(paddleX, paddleY, paddleWidth, paddleHeight, allow
     if (Math.abs(puck.dy) < 1.5) {
       puck.dy = puck.dy > 0 ? 1.5 : -1.5;
     }
+    // Move puck outside the paddle so it doesn't overlap next frame and bounce again.
+    if (wasMovingRight) {
+      puck.x = paddleX - puck.radius;
+    } else {
+      puck.x = paddleX + paddleWidth + puck.radius;
+    }
     updateDifficulty();
     return true;
   }
   return false;
 }
 
-
-/** Moves player and computer paddles, puck; handles paddle bounces (with deflection rules) and side walls (bounce vs goal). */
+/**
+ * Moves player and computer paddles, puck; handles paddle collisions (with
+ * deflection rules), top/bottom wall bounces, and side walls (bounce zones vs goal).
+ */
 function update() {
+  // Player paddles follow mouse, clamped to canvas.
   playerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseY));
   if (!gameRunning) return;
 
-  // Computer AI: move both paddles toward puck (same Y for both).
+  // Computer AI: move both paddles toward puck with speed that scales with difficulty.
   const computerPaddleCenter = computerY + PADDLE_HEIGHT / 2;
   const computerSpeed = BASE_COMPUTER_SPEED * (1 + (currentSpeedMultiplier - 1) * 0.5);
   if (computerPaddleCenter < puck.y - 10) {
@@ -230,7 +302,7 @@ function update() {
     puck.dy *= -1;
   }
 
-  // Paddle collisions: goalies always deflect; forwards only when puck is moving toward our goal.
+  // Paddle collisions: goalies always deflect; forwards only when puck moves toward our goal.
   if (checkPaddleCollision(PLAYER_GOALIE_X, playerY, PADDLE_WIDTH, PADDLE_HEIGHT, true)) {
   } else if (checkPaddleCollision(PLAYER_FORWARD_X, playerY, PADDLE_WIDTH, PADDLE_HEIGHT, puck.dx < 0)) {
   } else if (checkPaddleCollision(COMPUTER_GOALIE_X, computerY, PADDLE_WIDTH, PADDLE_HEIGHT, true)) {
@@ -261,8 +333,9 @@ function update() {
   }
 }
 
-
-/** Stops the game when either side reaches winningScore. */
+/**
+ * Stops the game when either side reaches winningScore.
+ */
 function checkWinCondition() {
   if (playerScore >= winningScore || computerScore >= winningScore) {
     gameRunning = false;
@@ -270,19 +343,28 @@ function checkWinCondition() {
   }
 }
 
-/** Writes current scores to the DOM. */
+/**
+ * Writes current player and computer scores to the DOM.
+ */
 function updateScore() {
   document.getElementById('player-score').textContent = playerScore;
   document.getElementById('computer-score').textContent = computerScore;
 }
 
-/** Always update (paddle movement) then draw. */
+/**
+ * RequestAnimationFrame loop: update (paddle and puck) then draw every frame.
+ */
 function gameLoop() {
   update();
   draw();
   animationFrame = requestAnimationFrame(gameLoop);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Input and navigation                                                        */
+/* -------------------------------------------------------------------------- */
+
+// Map mouse Y to canvas and clamp to paddle range.
 canvas.addEventListener('mousemove', (e) => {
   const rect = canvas.getBoundingClientRect();
   const scaleY = canvas.height / rect.height;
@@ -300,7 +382,10 @@ canvas.addEventListener('mouseleave', () => {
   canvas.style.cursor = 'default';
 });
 
-/** Resumes from pause or starts new game; resets scores after a win if needed. */
+/**
+ * Resumes from pause or starts a new game. If resuming after a win, resets
+ * scores and calls init() before setting gameRunning.
+ */
 function startOrContinueGame() {
   if (gamePaused) {
     gamePaused = false;
@@ -327,7 +412,7 @@ function startOrContinueGame() {
   }
 }
 
-
+// Click to start/continue; ignore if user clicked the back button.
 document.addEventListener('click', (e) => {
   if (e.target.closest('.back-button')) {
     return;

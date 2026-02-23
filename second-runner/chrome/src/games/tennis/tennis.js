@@ -1,7 +1,22 @@
+/**
+ * tennis.js
+ * Single-player tennis: player vs computer paddles, ball bounces off top/bottom walls.
+ * First to winningScore points wins. Difficulty (ball and computer speed) increases with
+ * rally count and starts at INITIAL_SPEED_MULTIPLIER. Click to start/continue; back
+ * button returns to main menu.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Canvas and DOM                                                             */
+/* -------------------------------------------------------------------------- */
+
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 
-// Game state flags and scores.
+/* -------------------------------------------------------------------------- */
+/* Game state flags and scores                                                */
+/* -------------------------------------------------------------------------- */
+
 let gameRunning = false;
 let gamePaused = false;
 let animationFrame;
@@ -9,13 +24,21 @@ let playerScore = 0;
 let computerScore = 0;
 let winningScore = 5;
 
-// Rally-based difficulty: speed increases with consecutive hits, capped at MAX_SPEED_MULTIPLIER.
+/* -------------------------------------------------------------------------- */
+/* Rally-based difficulty (speed increases with consecutive hits)              */
+/* -------------------------------------------------------------------------- */
+
 let rallyCount = 0;
 const BASE_BALL_SPEED = 5;
-const MAX_SPEED_MULTIPLIER = 2.5;
-let currentSpeedMultiplier = 1;
+/** Game starts at this multiplier so it feels challenging sooner (1 = original). Speed increases with rally, no cap. */
+const INITIAL_SPEED_MULTIPLIER = 1.7;
+let currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER;
 
-// Paddle Y positions (player follows mouse; computer is AI).
+/* -------------------------------------------------------------------------- */
+/* Paddles and ball                                                            */
+/* -------------------------------------------------------------------------- */
+
+// Player paddle Y (follows mouse); computer paddle Y (AI).
 let playerY = canvas.height / 2 - 40;
 let computerY = canvas.height / 2 - 40;
 
@@ -23,6 +46,7 @@ const PADDLE_WIDTH = 10;
 const PADDLE_HEIGHT = 80;
 const BASE_COMPUTER_SPEED = 4;
 
+// Ball: position, velocity (dx/dy), radius, and base speed (scaled by difficulty).
 let ball = {
   x: canvas.width / 2,
   y: canvas.height / 2,
@@ -32,40 +56,60 @@ let ball = {
   baseSpeed: BASE_BALL_SPEED
 };
 
+// Mouse Y mapped to canvas (clamped to paddle range); used when cursor is inside canvas.
 let mouseY = canvas.height / 2 - 40;
 let mouseInsideCanvas = false;
 
-/** Resets ball to center and gives it a random horizontal direction and slight vertical variation. */
+/* -------------------------------------------------------------------------- */
+/* Init and reset                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Resets ball to center and gives it a random horizontal direction and slight
+ * vertical variation. Resets rally count and applies INITIAL_SPEED_MULTIPLIER.
+ */
 function init() {
   ball.x = canvas.width / 2;
   ball.y = canvas.height / 2;
 
   rallyCount = 0;
-  currentSpeedMultiplier = 1;
-  ball.baseSpeed = BASE_BALL_SPEED;
+  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER;
+  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
 
-  ball.dx = (Math.random() > 0.5 ? BASE_BALL_SPEED : -BASE_BALL_SPEED);
+  ball.dx = (Math.random() > 0.5 ? ball.baseSpeed : -ball.baseSpeed);
   ball.dy = (Math.random() * 4) - 2;
 }
 
 
-/** Resets ball and difficulty for the next point; pauses until user clicks to continue. */
+/**
+ * Resets ball and difficulty for the next point; pauses until user clicks to continue.
+ * Used after a goal; gameLoop keeps drawing the overlay until the user clicks.
+ */
 function resetForNextMatch() {
   ball.x = canvas.width / 2;
   ball.y = canvas.height / 2;
 
   rallyCount = 0;
-  currentSpeedMultiplier = 1;
-  ball.baseSpeed = BASE_BALL_SPEED;
+  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER;
+  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
 
-  ball.dx = (Math.random() > 0.5 ? BASE_BALL_SPEED : -BASE_BALL_SPEED);
+  ball.dx = (Math.random() > 0.5 ? ball.baseSpeed : -ball.baseSpeed);
   ball.dy = (Math.random() * 4) - 2;
 
   gameRunning = false;
   gamePaused = true;
 }
 
-/** Reads the 4-color greyscale palette from CSS custom properties. */
+/* -------------------------------------------------------------------------- */
+/* Theme and drawing                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Reads the four-color greyscale palette from CSS custom properties on the document.
+ * Fallbacks used if theme does not define --darkest, --dark, --light, --lightest.
+ *
+ * @returns {{ darkest: string, dark: string, light: string, lightest: string }}
+ */
 function getThemeColors() {
   const s = getComputedStyle(document.documentElement);
   return {
@@ -77,7 +121,11 @@ function getThemeColors() {
 }
 const theme = getThemeColors();
 
-/** Draws the court, paddles, ball, and any overlay (pause, start, win, rally count). */
+/**
+ * Draws the court (background, center line), paddles, ball, and overlays.
+ * Overlays: pause (winner or "CLICK TO CONTINUE"), start ("CLICK TO START"),
+ * and when running a rally counter with speed multiplier in the top-right.
+ */
 function draw() {
   ctx.fillStyle = theme.lightest;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -134,7 +182,7 @@ function draw() {
     ctx.fillText('CLICK TO START', canvas.width / 2, canvas.height / 2);
   }
 
-  // Rally counter and speed multiplier (subtle, top-right).
+  // Rally counter and speed multiplier (subtle, top-right) when game is running.
   if (gameRunning && rallyCount > 0) {
     ctx.fillStyle = theme.darkest;
     ctx.globalAlpha = 0.5;
@@ -145,11 +193,18 @@ function draw() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Difficulty and game loop update                                             */
+/* -------------------------------------------------------------------------- */
 
-/** Increases rally count, bumps speed multiplier (capped), and applies it to ball velocity while keeping direction. */
+/**
+ * Increases rally count, bumps speed multiplier (no cap), and applies it to ball
+ * velocity while preserving direction. Base is INITIAL_SPEED_MULTIPLIER so first
+ * hit doesn't drop speed. Called on each paddle hit.
+ */
 function updateDifficulty() {
   rallyCount++;
-  currentSpeedMultiplier = Math.min(1 + (Math.floor(rallyCount / 2) * 0.1), MAX_SPEED_MULTIPLIER);
+  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER + (Math.floor(rallyCount / 2) * 0.1);
   const directionX = ball.dx > 0 ? 1 : -1;
   const directionY = ball.dy > 0 ? 1 : -1;
   ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
@@ -157,13 +212,17 @@ function updateDifficulty() {
   ball.dy = Math.abs(ball.dy) * directionY;
 }
 
-/** Moves paddles and ball, handles wall and paddle bounces, and scoring (left/right goal). */
+/**
+ * Moves paddles and ball, handles top/bottom wall bounces, paddle bounces
+ * (with angle and difficulty bump), and scoring when ball leaves left or right.
+ */
 function update() {
   if (!gameRunning) return;
 
+  // Player paddle follows mouse, clamped to canvas.
   playerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseY));
 
-  // Computer AI: move toward ball (or center when not running), with speed that scales with difficulty.
+  // Computer AI: move toward ball with speed that scales with current difficulty.
   const computerPaddleCenter = computerY + PADDLE_HEIGHT / 2;
   const computerSpeed = BASE_COMPUTER_SPEED * (1 + (currentSpeedMultiplier - 1) * 0.5);
   if (computerPaddleCenter < ball.y - 10) {
@@ -186,6 +245,7 @@ function update() {
       ball.x + ball.radius > 10 &&
       ball.y > playerY &&
       ball.y < playerY + PADDLE_HEIGHT) {
+    const wasMovingRight = ball.dx > 0;
     const relativeIntersectY = (ball.y - (playerY + PADDLE_HEIGHT/2)) / (PADDLE_HEIGHT/2);
     const bounceAngle = relativeIntersectY * 0.8;
     ball.dx = -ball.dx;
@@ -193,14 +253,21 @@ function update() {
     if (Math.abs(ball.dy) < 1.5) {
       ball.dy = ball.dy > 0 ? 1.5 : -1.5;
     }
+    // Move ball outside paddle so it doesn't overlap next frame and bounce again.
+    if (wasMovingRight) {
+      ball.x = 10 - ball.radius;
+    } else {
+      ball.x = 10 + PADDLE_WIDTH + ball.radius;
+    }
     updateDifficulty();
   }
 
-  // Computer paddle (right): same bounce logic.
+  // Computer paddle (right): same bounce logic and position resolve.
   if (ball.x + ball.radius > canvas.width - PADDLE_WIDTH - 10 &&
       ball.x - ball.radius < canvas.width - 10 &&
       ball.y > computerY &&
       ball.y < computerY + PADDLE_HEIGHT) {
+    const wasMovingRight = ball.dx > 0;
     const relativeIntersectY = (ball.y - (computerY + PADDLE_HEIGHT/2)) / (PADDLE_HEIGHT/2);
     const bounceAngle = relativeIntersectY * 0.8;
     ball.dx = -ball.dx;
@@ -208,10 +275,16 @@ function update() {
     if (Math.abs(ball.dy) < 1.5) {
       ball.dy = ball.dy > 0 ? 1.5 : -1.5;
     }
+    // Resolve: after bounce, ball is either left or right of the computer paddle.
+    if (wasMovingRight) {
+      ball.x = canvas.width - 10 - PADDLE_WIDTH - ball.radius;
+    } else {
+      ball.x = canvas.width - 10 + ball.radius;
+    }
     updateDifficulty();
   }
 
-  // Scoring: ball past left edge = computer scores; past right edge = player scores.
+  // Scoring: ball past left edge = computer scores; past right = player scores.
   if (ball.x - ball.radius < 0) {
     computerScore++;
     updateScore();
@@ -225,8 +298,9 @@ function update() {
   }
 }
 
-
-/** Stops the game and shows win overlay when either side reaches winningScore. */
+/**
+ * Stops the game and shows win overlay when either side reaches winningScore.
+ */
 function checkWinCondition() {
   if (playerScore >= winningScore || computerScore >= winningScore) {
     gameRunning = false;
@@ -234,28 +308,37 @@ function checkWinCondition() {
   }
 }
 
-/** Resets ball position and sends it toward the given scorer's side; resets difficulty. */
+/**
+ * Resets ball position and sends it toward the given scorer's side; resets
+ * difficulty to initial. Used when starting the next point after a goal.
+ *
+ * @param {'player'|'computer'} scorer - Who scored; ball is sent toward the other side.
+ */
 function resetBall(scorer) {
   ball.x = canvas.width / 2;
   ball.y = canvas.height / 2;
+  rallyCount = 0;
+  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER;
+  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
   if (scorer === 'player') {
-    ball.dx = -BASE_BALL_SPEED;
+    ball.dx = -ball.baseSpeed;
   } else {
-    ball.dx = BASE_BALL_SPEED;
+    ball.dx = ball.baseSpeed;
   }
   ball.dy = (Math.random() * 4) - 2;
-  rallyCount = 0;
-  currentSpeedMultiplier = 1;
-  ball.baseSpeed = BASE_BALL_SPEED;
 }
 
-/** Writes current scores to the DOM. */
+/**
+ * Writes current player and computer scores to the DOM elements.
+ */
 function updateScore() {
   document.getElementById('player-score').textContent = playerScore;
   document.getElementById('computer-score').textContent = computerScore;
 }
 
-/** RequestAnimationFrame loop: update when running, then draw. */
+/**
+ * RequestAnimationFrame loop: update when game is running, then draw every frame.
+ */
 function gameLoop() {
   if (gameRunning) {
     update();
@@ -263,6 +346,10 @@ function gameLoop() {
   draw();
   animationFrame = requestAnimationFrame(gameLoop);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Input and navigation                                                        */
+/* -------------------------------------------------------------------------- */
 
 // Map mouse Y to canvas Y and clamp to paddle range.
 canvas.addEventListener('mousemove', (e) => {
@@ -282,7 +369,10 @@ canvas.addEventListener('mouseleave', () => {
   canvas.style.cursor = 'default';
 });
 
-/** Resumes from pause or starts a new game (resetting scores after a win if needed). */
+/**
+ * Resumes from pause or starts a new game. If resuming after a win, resets
+ * scores and calls init() before setting gameRunning.
+ */
 function startOrContinueGame() {
   if (gamePaused) {
     gamePaused = false;
@@ -309,8 +399,7 @@ function startOrContinueGame() {
   }
 }
 
-
-// Click to start/continue, unless the user clicked the back button.
+// Click to start/continue; ignore if user clicked the back button.
 document.addEventListener('click', (e) => {
   if (e.target.closest('.back-button')) {
     return;
