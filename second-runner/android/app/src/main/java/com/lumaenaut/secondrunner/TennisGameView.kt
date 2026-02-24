@@ -47,7 +47,6 @@ class TennisGameView @JvmOverloads constructor(
     private fun sx(dx: Float) = offsetX + dx * scale
     private fun sy(dy: Float) = offsetY + dy * scale
     private fun toDesignY(ey: Float) = (ey - offsetY) / scale
-    private fun toDesignX(ex: Float) = (ex - offsetX) / scale
 
     private var playerY = 0f
     private var computerY = 0f
@@ -182,7 +181,7 @@ class TennisGameView @JvmOverloads constructor(
         canvas.drawRect(sx(10f), sy(playerY), sx(10 + paddleWidth), sy(playerY + paddleHeight), paint)
         canvas.drawRect(sx(designW - 10 - paddleWidth), sy(computerY), sx(designW - 10f), sy(computerY + paddleHeight), paint)
         canvas.drawCircle(sx(ballX), sy(ballY), ballRadius * scale, paint)
-        if (gamePaused && !gameRunning) {
+        if (!gameRunning) {
             paint.color = lightest
             paint.alpha = 230
             canvas.drawRect(sx(0f), sy(0f), sx(designW), sy(designH), paint)
@@ -191,6 +190,7 @@ class TennisGameView @JvmOverloads constructor(
             paint.textSize = 36f
             paint.textAlign = Paint.Align.CENTER
             when {
+                !gamePaused -> canvas.drawText(getContext().getString(R.string.click_to_start_game), sx(designW / 2f), sy(designH / 2f), paint)
                 playerScore >= winningScore -> {
                     canvas.drawText(getContext().getString(R.string.player_wins), sx(designW / 2f), sy(designH / 2f - 30), paint)
                     paint.textSize = 28f
@@ -203,15 +203,6 @@ class TennisGameView @JvmOverloads constructor(
                 }
                 else -> canvas.drawText(getContext().getString(R.string.click_to_continue), sx(designW / 2f), sy(designH / 2f), paint)
             }
-        } else if (!gameRunning && !gamePaused) {
-            paint.color = lightest
-            paint.alpha = 230
-            canvas.drawRect(sx(0f), sy(0f), sx(designW), sy(designH), paint)
-            paint.alpha = 255
-            paint.color = darkest
-            paint.textSize = 36f
-            paint.textAlign = Paint.Align.CENTER
-            canvas.drawText(getContext().getString(R.string.click_to_start_game), sx(designW / 2f), sy(designH / 2f), paint)
         }
         if (gameRunning && rallyCount > 0) {
             paint.color = darkest

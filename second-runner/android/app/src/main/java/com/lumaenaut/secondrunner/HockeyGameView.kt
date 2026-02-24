@@ -216,7 +216,7 @@ class HockeyGameView @JvmOverloads constructor(
     }
 
     private fun drawOverlay(canvas: Canvas) {
-        if (!gameRunning && !gamePaused || gamePaused) {
+        if (!gameRunning) {
             paint.color = lightest
             paint.alpha = 230
             canvas.drawRect(sx(0f), sy(0f), sx(designW), sy(designH), paint)

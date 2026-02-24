@@ -200,7 +200,7 @@ class HandballGameView @JvmOverloads constructor(
         canvas.drawRect(sx(compPaddleX), sy(computerY), sx(compPaddleX + paddleW), sy(computerY + paddleH), paint)
         paint.color = darkest
         canvas.drawCircle(sx(ballX), sy(ballY), ballRadiusD * scale, paint)
-        if (gamePaused && !gameRunning || !gameRunning && !gamePaused) {
+        if (!gameRunning) {
             paint.color = lightest
             paint.alpha = 230
             canvas.drawRect(sx(0f), sy(0f), sx(designW), sy(designH), paint)
