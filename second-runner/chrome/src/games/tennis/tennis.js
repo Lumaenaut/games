@@ -76,37 +76,37 @@ function getThemeColors() {
 }
 const theme = getThemeColors();
 
+/** If either side has won, resets scores to 0 and updates the DOM. Returns whether a win was reset. */
+function resetScoresIfWin() {
+  if (playerScore >= winningScore || computerScore >= winningScore) {
+    playerScore = 0;
+    computerScore = 0;
+    updateScore();
+    return true;
+  }
+  return false;
+}
+
 /**
  * Resumes from pause or starts a new game. If resuming after a win, resets
  * scores and calls init() before setting gameRunning.
  */
 function startOrContinueGame() {
-  // Case 1: We were paused (e.g. "CLICK TO CONTINUE" or "Click for next match").
+  // Case 1: We were paused (e.g. "CLICK TO CONTINUE" or "CLICK FOR NEXT MATCH").
   if (gamePaused) {
-    gamePaused = false;
-    if (playerScore >= winningScore || computerScore >= winningScore) {
-      playerScore = 0;
-      computerScore = 0;
-      updateScore();
-      init();
-    }
-
+    const hadWin = resetScoresIfWin();
+    if (hadWin) init();
     gameRunning = true;
+    gamePaused = false;
     return;
   }
 
   // Case 2: Game not running and not paused — start screen ("CLICK TO START").
   if (!gameRunning && !gamePaused) {
-    // If we had a previous win and never reset, clear scores before starting.
-    if (playerScore >= winningScore || computerScore >= winningScore) {
-
-      playerScore = 0;
-      computerScore = 0;
-      updateScore();
-    }
+    resetScoresIfWin();
+    init();
     gameRunning = true;
     gamePaused = false;
-    init();
   }
 }
 
@@ -130,6 +130,7 @@ function init() {
   currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER;
   ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
 
+  // Give the ball a random horizontal direction and slight vertical variation.
   ball.dx = (Math.random() > 0.5 ? ball.baseSpeed : -ball.baseSpeed);
   ball.dy = (Math.random() * 4) - 2;
 }
@@ -138,9 +139,7 @@ function init() {
  * RequestAnimationFrame loop: update when game is running, then draw every frame.
  */
 function gameLoop() {
-  if (gameRunning) {
-    update();
-  }
+  update();
   draw();
   animationFrame = requestAnimationFrame(gameLoop);
 }
@@ -152,69 +151,53 @@ function gameLoop() {
 function update() {
   if (!gameRunning) return;
 
-  // Player paddle follows mouse, clamped to canvas.
+  // --- Player paddle ---
+  // Clamp mouse Y to canvas so the paddle stays fully on screen.
+  // Math.min(canvas.height - PADDLE_HEIGHT, mouseY) prevents going below;
+  // Math.max(0, ...) prevents going above.
   playerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseY));
 
-  // Computer AI: move toward ball with speed that scales with current difficulty.
+  // --- Computer AI ---
+  // Center Y of the computer paddle (for comparing to ball position).
   const computerPaddleCenter = computerY + PADDLE_HEIGHT / 2;
+  // Speed scales with difficulty: higher multiplier => faster reaction.
   const computerSpeed = BASE_COMPUTER_SPEED * (1 + (currentSpeedMultiplier - 1) * 0.5);
+  // Dead zone of 10px: only move if ball center is more than 10px above or below paddle center.
   if (computerPaddleCenter < ball.y - 10) {
-    computerY += computerSpeed;
+    computerY += computerSpeed;   // Ball above => move paddle down.
   } else if (computerPaddleCenter > ball.y + 10) {
-    computerY -= computerSpeed;
+    computerY -= computerSpeed;   // Ball below => move paddle up.
   }
+  // Clamp computer paddle to canvas (same idea as player).
   computerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, computerY));
 
+  // --- Ball movement ---
+  // dx/dy are velocity per frame; add them to position.
   ball.x += ball.dx;
   ball.y += ball.dy;
 
-  // Top and bottom walls: reflect vertical velocity.
+  // --- Top and bottom walls ---
+  // If ball hits ceiling or floor (using radius for circle bounds), flip vertical velocity.
   if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
     ball.dy *= -1;
   }
 
-  // Player paddle (left): AABB overlap then angle-based bounce and difficulty bump.
+  // --- Player paddle (left side) collision ---
+  // AABB check: ball vs paddle at x=10, width PADDLE_WIDTH.
   if (ball.x - ball.radius < 10 + PADDLE_WIDTH &&
       ball.x + ball.radius > 10 &&
       ball.y > playerY &&
       ball.y < playerY + PADDLE_HEIGHT) {
-    const wasMovingRight = ball.dx > 0;
-    const relativeIntersectY = (ball.y - (playerY + PADDLE_HEIGHT/2)) / (PADDLE_HEIGHT/2);
-    const bounceAngle = relativeIntersectY * 0.8;
-    ball.dx = -ball.dx;
-    ball.dy = bounceAngle * ball.baseSpeed;
-    if (Math.abs(ball.dy) < 1.5) {
-      ball.dy = ball.dy > 0 ? 1.5 : -1.5;
-    }
-    // Move ball outside paddle so it doesn't overlap next frame and bounce again.
-    if (wasMovingRight) {
-      ball.x = 10 - ball.radius;
-    } else {
-      ball.x = 10 + PADDLE_WIDTH + ball.radius;
-    }
-    updateDifficulty();
+    applyPaddleBounce(playerY, 10, 10 + PADDLE_WIDTH);
   }
 
-  // Computer paddle (right): same bounce logic and position resolve.
-  if (ball.x + ball.radius > canvas.width - PADDLE_WIDTH - 10 &&
+  // --- Computer paddle (right side) collision ---
+  const computerPaddleLeft = canvas.width - 10 - PADDLE_WIDTH;
+  if (ball.x + ball.radius > computerPaddleLeft &&
       ball.x - ball.radius < canvas.width - 10 &&
       ball.y > computerY &&
       ball.y < computerY + PADDLE_HEIGHT) {
-    const wasMovingRight = ball.dx > 0;
-    const relativeIntersectY = (ball.y - (computerY + PADDLE_HEIGHT/2)) / (PADDLE_HEIGHT/2);
-    const bounceAngle = relativeIntersectY * 0.8;
-    ball.dx = -ball.dx;
-    ball.dy = bounceAngle * ball.baseSpeed;
-    if (Math.abs(ball.dy) < 1.5) {
-      ball.dy = ball.dy > 0 ? 1.5 : -1.5;
-    }
-    // Resolve: after bounce, ball is either left or right of the computer paddle.
-    if (wasMovingRight) {
-      ball.x = canvas.width - 10 - PADDLE_WIDTH - ball.radius;
-    } else {
-      ball.x = canvas.width - 10 + ball.radius;
-    }
-    updateDifficulty();
+    applyPaddleBounce(computerY, computerPaddleLeft, canvas.width - 10);
   }
 
   // Scoring: ball past left edge = computer scores; past right = player scores.
@@ -229,6 +212,77 @@ function update() {
     checkWinCondition();
     if (!gamePaused) resetForNextMatch();
   }
+}
+
+/**
+ * Increases rally count, bumps speed multiplier (no cap), and applies it to ball
+ * velocity while preserving direction. Base is INITIAL_SPEED_MULTIPLIER so first
+ * hit doesn't drop speed. Called on each paddle hit.
+ */
+function updateDifficulty() {
+  rallyCount++;
+  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER + (Math.floor(rallyCount / 2) * 0.1);
+  const directionX = ball.dx > 0 ? 1 : -1;
+  const directionY = ball.dy > 0 ? 1 : -1;
+  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
+  ball.dx = directionX * ball.baseSpeed;
+  ball.dy = Math.abs(ball.dy) * directionY;
+}
+
+/**
+ * Applies angle-based bounce off a paddle and resolves ball position to avoid double bounce.
+ * @param {number} paddleY - Paddle top Y
+ * @param {number} paddleLeftX - Paddle left edge X
+ * @param {number} paddleRightX - Paddle right edge X
+ */
+function applyPaddleBounce(paddleY, paddleLeftX, paddleRightX) {
+  // Direction before bounce: used later to place ball on the correct side of the paddle.
+  const wasMovingRight = ball.dx > 0;
+
+  // Where the ball hit the paddle, normalized to [-1, 1]:
+  // -1 = top of paddle, 0 = center, +1 = bottom.
+  // (PADDLE_HEIGHT/2) is half the paddle height, so dividing by it normalizes the offset.
+  const relativeIntersectY = (ball.y - (paddleY + PADDLE_HEIGHT / 2)) / (PADDLE_HEIGHT / 2);
+
+  // Scale angle so bounces aren't too steep; 0.8 caps the effective angle.
+  const bounceAngle = relativeIntersectY * 0.8;
+
+  // Reverse horizontal direction (ball bounces back).
+  ball.dx = -ball.dx;
+
+  // Set vertical speed from hit position: top hit → up (negative dy), bottom hit → down (positive dy).
+  ball.dy = bounceAngle * ball.baseSpeed;
+
+  // Avoid near-horizontal bounces: enforce a minimum |dy| of 1.5 so the ball doesn't travel flat.
+  if (Math.abs(ball.dy) < 1.5) {
+    ball.dy = ball.dy > 0 ? 1.5 : -1.5;
+  }
+
+  // Move ball just outside the paddle so it doesn't overlap next frame and trigger another bounce.
+  // If it was moving right it came from the left, so place it at the paddle's left edge; else right edge.
+  ball.x = wasMovingRight ? paddleLeftX - ball.radius : paddleRightX + ball.radius;
+
+  updateDifficulty();
+}
+
+/**
+ * Stops the game and shows win overlay when either side reaches winningScore.
+ */
+function checkWinCondition() {
+  if (playerScore >= winningScore || computerScore >= winningScore) {
+    gameRunning = false;
+    gamePaused = true;
+  }
+}
+
+/**
+ * Resets ball and difficulty for the next point; pauses until user clicks to continue.
+ * Used after a goal; gameLoop keeps drawing the overlay until the user clicks.
+ */
+function resetForNextMatch() {
+  init();
+  gameRunning = false;
+  gamePaused = true;
 }
 
 /**
@@ -260,8 +314,8 @@ function draw() {
   ctx.fillStyle = theme.darkest;
   ctx.fill();
 
-  // Pause overlay: winner text or "CLICK TO CONTINUE".
-  if (gamePaused && !gameRunning) {
+  // Overlay when game is not running: semi-transparent panel + text.
+  if (!gameRunning) {
     ctx.fillStyle = theme.lightest;
     ctx.globalAlpha = 0.9;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -270,26 +324,18 @@ function draw() {
     ctx.font = 'bold 20px system-ui, sans-serif';
     ctx.textAlign = 'center';
 
-    if (playerScore >= winningScore || computerScore >= winningScore) {
-
-      const winnerText = playerScore >= winningScore ? 'PLAYER WINS!' : 'COMPUTER WINS!';
-      ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 30);
-      ctx.font = '16px system-ui, sans-serif';
-      ctx.fillText('CLICK FOR NEXT MATCH', canvas.width / 2, canvas.height / 2 + 10);
+    if (gamePaused) {
+      if (playerScore >= winningScore || computerScore >= winningScore) {
+        const winnerText = playerScore >= winningScore ? 'PLAYER WINS!' : 'COMPUTER WINS!';
+        ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 30);
+        ctx.font = '16px system-ui, sans-serif';
+        ctx.fillText('CLICK FOR NEXT MATCH', canvas.width / 2, canvas.height / 2 + 10);
+      } else {
+        ctx.fillText('CLICK TO CONTINUE', canvas.width / 2, canvas.height / 2);
+      }
     } else {
-
-      ctx.fillText('CLICK TO CONTINUE', canvas.width / 2, canvas.height / 2);
+      ctx.fillText('CLICK TO START', canvas.width / 2, canvas.height / 2);
     }
-  } else if (!gameRunning && !gamePaused) {
-    // Start overlay: "CLICK TO START".
-    ctx.fillStyle = theme.lightest;
-    ctx.globalAlpha = 0.9;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = theme.darkest;
-    ctx.font = 'bold 20px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('CLICK TO START', canvas.width / 2, canvas.height / 2);
   }
 
   // Rally counter and speed multiplier (subtle, top-right) when game is running.
@@ -301,50 +347,6 @@ function draw() {
     ctx.fillText(`RALLY: ${rallyCount} X${currentSpeedMultiplier.toFixed(1)}`, canvas.width - 20, 30);
     ctx.globalAlpha = 1;
   }
-}
-
-/**
- * Increases rally count, bumps speed multiplier (no cap), and applies it to ball
- * velocity while preserving direction. Base is INITIAL_SPEED_MULTIPLIER so first
- * hit doesn't drop speed. Called on each paddle hit.
- */
-function updateDifficulty() {
-  rallyCount++;
-  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER + (Math.floor(rallyCount / 2) * 0.1);
-  const directionX = ball.dx > 0 ? 1 : -1;
-  const directionY = ball.dy > 0 ? 1 : -1;
-  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
-  ball.dx = directionX * ball.baseSpeed;
-  ball.dy = Math.abs(ball.dy) * directionY;
-}
-
-/**
- * Stops the game and shows win overlay when either side reaches winningScore.
- */
-function checkWinCondition() {
-  if (playerScore >= winningScore || computerScore >= winningScore) {
-    gameRunning = false;
-    gamePaused = true;
-  }
-}
-
-/**
- * Resets ball and difficulty for the next point; pauses until user clicks to continue.
- * Used after a goal; gameLoop keeps drawing the overlay until the user clicks.
- */
-function resetForNextMatch() {
-  ball.x = canvas.width / 2;
-  ball.y = canvas.height / 2;
-
-  rallyCount = 0;
-  currentSpeedMultiplier = INITIAL_SPEED_MULTIPLIER;
-  ball.baseSpeed = BASE_BALL_SPEED * currentSpeedMultiplier;
-
-  ball.dx = (Math.random() > 0.5 ? ball.baseSpeed : -ball.baseSpeed);
-  ball.dy = (Math.random() * 4) - 2;
-
-  gameRunning = false;
-  gamePaused = true;
 }
 
 /* -------------------------------------------------------------------------- */
