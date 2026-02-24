@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Score box: lightest background, dark border, offset shadow (matches Chrome .score). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:left="4dp" android:top="4dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/darkest" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/lightest" />
+            <stroke android:width="3dp" android:color="@color/dark" />
+        </shape>
+    </item>
+</layer-list>

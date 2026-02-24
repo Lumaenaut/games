@@ -2,6 +2,7 @@ package com.lumaenaut.secondrunner
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.bundleOf
@@ -44,6 +45,34 @@ class GameFragment : Fragment(), GameScoreListener {
             }
         }
         binding.gameContainer.addView(gameView, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+
+        // Touch anywhere in the parent (except the back button) to start or continue the game.
+        binding.gameScreenRoot.onTapToStart = {
+            (binding.gameContainer.getChildAt(0) as? TapToStartGameView)?.takeIf { it.isWaitingForTap() }?.startFromTap()
+        }
+        // Intercept touch when not on back button so root gets full DOWN/MOVE/UP for paddle control everywhere.
+        binding.gameScreenRoot.onShouldInterceptTouch = { event -> !isTouchInside(event, binding.backButton) }
+        binding.gameScreenRoot.setOnTouchListener { v, event ->
+            if (isTouchInside(event, binding.backButton)) return@setOnTouchListener false
+            val gv = binding.gameContainer.getChildAt(0)
+            when (event.action) {
+                MotionEvent.ACTION_DOWN ->
+                    (gv as? TapToStartGameView)?.takeIf { it.isWaitingForTap() }?.let { v.performClick() }
+                MotionEvent.ACTION_MOVE ->
+                    (gv as? PaddleTouchableView)?.setTouchYFromScreen(event.rawY)
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                    (gv as? PaddleTouchableView)?.onTouchEnd()
+            }
+            true
+        }
+    }
+
+    private fun isTouchInside(event: MotionEvent, view: View): Boolean {
+        val loc = IntArray(2)
+        view.getLocationOnScreen(loc)
+        val x = event.rawX.toInt()
+        val y = event.rawY.toInt()
+        return x >= loc[0] && x < loc[0] + view.width && y >= loc[1] && y < loc[1] + view.height
     }
 
     override fun onScoreChanged(playerScore: Int, computerScore: Int) {
@@ -64,4 +93,16 @@ class GameFragment : Fragment(), GameScoreListener {
 
 interface GameScoreListener {
     fun onScoreChanged(playerScore: Int, computerScore: Int)
+}
+
+/** Game views that can be started or continued by a touch (e.g. anywhere on screen). */
+interface TapToStartGameView {
+    fun isWaitingForTap(): Boolean
+    fun startFromTap()
+}
+
+/** Game views where the player paddle can be controlled by touch Y from anywhere on screen. */
+interface PaddleTouchableView {
+    fun setTouchYFromScreen(screenY: Float)
+    fun onTouchEnd() {}
 }

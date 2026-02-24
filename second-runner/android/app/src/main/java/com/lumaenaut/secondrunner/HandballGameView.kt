@@ -17,7 +17,7 @@ class HandballGameView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
-) : View(context, attrs, defStyleAttr) {
+) : View(context, attrs, defStyleAttr), TapToStartGameView, PaddleTouchableView {
 
     private var scoreListener: GameScoreListener? = null
     fun setScoreListener(l: GameScoreListener?) { scoreListener = l }
@@ -35,8 +35,9 @@ class HandballGameView @JvmOverloads constructor(
     private val winningScore = 5
     private var rallyCount = 0
     private val baseBallSpeed = 5f
-    private val maxSpeedMultiplier = 2.5f
-    private var currentSpeedMultiplier = 1f
+    /** Start at this multiplier so the game feels challenging from the first rally. */
+    private val initialSpeedMultiplier = 1.8f
+    private var currentSpeedMultiplier = initialSpeedMultiplier
     private val designW = 400f
     private val designH = 350f
     private val paddleW = 10f
@@ -62,6 +63,10 @@ class HandballGameView @JvmOverloads constructor(
     private var ballBaseSpeed = baseBallSpeed
     private var touchY = 0f
 
+    /** Paddle movement = finger delta * sensitivity (no teleport, only move by delta). */
+    private val paddleSensitivity = 1.9f
+    private var lastFingerYDesign: Float? = null
+
     private var choreographer: Choreographer? = null
     private val frameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
@@ -73,9 +78,18 @@ class HandballGameView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        scale = min(width / designW, height / designH)
-        offsetX = (width - designW * scale) / 2f
-        offsetY = (height - designH * scale) / 2f
+        val isLandscape = w >= h
+        if (isLandscape) {
+            // Landscape: play area height = display height; width from design aspect ratio (400/350).
+            scale = h / designH
+            offsetX = (w - designW * scale) / 2f
+            offsetY = 0f
+        } else {
+            // Portrait: fit play area inside view, centered.
+            scale = min(w / designW, h / designH)
+            offsetX = (w - designW * scale) / 2f
+            offsetY = (h - designH * scale) / 2f
+        }
         init()
     }
 
@@ -83,9 +97,9 @@ class HandballGameView @JvmOverloads constructor(
         ballX = designW / 2f
         ballY = designH / 2f
         rallyCount = 0
-        currentSpeedMultiplier = 1f
-        ballBaseSpeed = baseBallSpeed
-        ballDx = baseBallSpeed
+        currentSpeedMultiplier = initialSpeedMultiplier
+        ballBaseSpeed = baseBallSpeed * currentSpeedMultiplier
+        ballDx = ballBaseSpeed
         ballDy = (Random.nextFloat() * 4f) - 2f
         playerY = designH / 2f - paddleH / 2
         computerY = designH / 2f - paddleH / 2
@@ -96,9 +110,9 @@ class HandballGameView @JvmOverloads constructor(
         ballX = designW / 2f
         ballY = designH / 2f
         rallyCount = 0
-        currentSpeedMultiplier = 1f
-        ballBaseSpeed = baseBallSpeed
-        ballDx = baseBallSpeed
+        currentSpeedMultiplier = initialSpeedMultiplier
+        ballBaseSpeed = baseBallSpeed * currentSpeedMultiplier
+        ballDx = ballBaseSpeed
         ballDy = (Random.nextFloat() * 4f) - 2f
         turn = nextTurn
         swapPending = false
@@ -108,7 +122,7 @@ class HandballGameView @JvmOverloads constructor(
 
     private fun updateDifficulty() {
         rallyCount++
-        currentSpeedMultiplier = min(1f + (rallyCount / 2) * 0.1f, maxSpeedMultiplier)
+        currentSpeedMultiplier = initialSpeedMultiplier + (rallyCount / 2) * 0.1f
         val dirX = if (ballDx > 0) 1f else -1f
         val dirY = if (ballDy > 0) 1f else -1f
         ballBaseSpeed = baseBallSpeed * currentSpeedMultiplier
@@ -118,12 +132,12 @@ class HandballGameView @JvmOverloads constructor(
 
     private fun update() {
         playerY = touchY.coerceIn(0f, designH - paddleH)
-        val computerTarget = if (gameRunning) ballY - paddleH / 2 else designH / 2f - paddleH / 2
-        val computerSpeed = if (gameRunning) 4f else 2f
-        when {
-            computerY + paddleH / 2 < computerTarget -> computerY += computerSpeed
-            computerY + paddleH / 2 > computerTarget -> computerY -= computerSpeed
-        }
+        // CPU: track ball center with paddle center; move toward target at capped speed (no dead zone, no overshoot).
+        val paddleCenterY = computerY + paddleH / 2f
+        val targetCenterY = if (gameRunning) ballY else designH / 2f
+        val computerSpeed = if (gameRunning) 6f else 2f
+        val diff = targetCenterY - paddleCenterY
+        computerY += diff.coerceIn(-computerSpeed, computerSpeed)
         computerY = computerY.coerceIn(0f, designH - paddleH)
         ballX += ballDx
         ballY += ballDy
@@ -221,30 +235,59 @@ class HandballGameView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                touchY = toDesignY(event.y) - paddleH / 2
-                touchY = touchY.coerceIn(0f, designH - paddleH)
+            MotionEvent.ACTION_DOWN -> {
+                lastFingerYDesign = toDesignY(event.y)
+                performTapToStart()
             }
-            MotionEvent.ACTION_UP -> {
-                if (!gameRunning && !gamePaused) {
-                    gameRunning = true
-                    gamePaused = false
-                    init()
-                } else if (gamePaused) {
-                    gamePaused = false
-                    if (playerScore >= winningScore || computerScore >= winningScore) {
-                        playerScore = 0
-                        computerScore = 0
-                        turn = true
-                        swapPending = false
-                        scoreListener?.onScoreChanged(0, 0)
-                        init()
-                    }
-                    gameRunning = true
+            MotionEvent.ACTION_MOVE -> {
+                val current = toDesignY(event.y)
+                lastFingerYDesign?.let { prev ->
+                    touchY += (current - prev) * paddleSensitivity
+                    touchY = touchY.coerceIn(0f, designH - paddleH)
                 }
+                lastFingerYDesign = current
             }
         }
         return true
+    }
+
+    override fun isWaitingForTap(): Boolean = !gameRunning
+
+    override fun startFromTap() = performTapToStart()
+
+    override fun setTouchYFromScreen(screenY: Float) {
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        val relativeY = screenY - loc[1]
+        val current = toDesignY(relativeY)
+        lastFingerYDesign?.let { prev ->
+            touchY += (current - prev) * paddleSensitivity
+            touchY = touchY.coerceIn(0f, designH - paddleH)
+        }
+        lastFingerYDesign = current
+    }
+
+    override fun onTouchEnd() {
+        lastFingerYDesign = null
+    }
+
+    private fun performTapToStart() {
+        if (!gameRunning && !gamePaused) {
+            gameRunning = true
+            gamePaused = false
+            init()
+        } else if (gamePaused) {
+            gamePaused = false
+            if (playerScore >= winningScore || computerScore >= winningScore) {
+                playerScore = 0
+                computerScore = 0
+                turn = true
+                swapPending = false
+                scoreListener?.onScoreChanged(0, 0)
+                init()
+            }
+            gameRunning = true
+        }
     }
 
     override fun onAttachedToWindow() {

@@ -17,7 +17,7 @@ class TennisGameView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
-) : View(context, attrs, defStyleAttr) {
+) : View(context, attrs, defStyleAttr), TapToStartGameView, PaddleTouchableView {
 
     private var scoreListener: GameScoreListener? = null
     fun setScoreListener(l: GameScoreListener?) { scoreListener = l }
@@ -33,14 +33,13 @@ class TennisGameView @JvmOverloads constructor(
     private var computerScore = 0
     private val winningScore = 5
     private var rallyCount = 0
-    private val baseBallSpeed = 5f
-    private val maxSpeedMultiplier = 2.5f
+    private val baseBallSpeed = 9f
     private var currentSpeedMultiplier = 1f
     private val designW = 600f
     private val designH = 350f
     private val paddleWidth = 10f
     private val paddleHeight = 80f
-    private val baseComputerSpeed = 4f
+    private val baseComputerSpeed = 5.5f
 
     private var scale = 1f
     private var offsetX = 0f
@@ -59,6 +58,9 @@ class TennisGameView @JvmOverloads constructor(
     private val ballRadius = 5f
     private var ballBaseSpeed = baseBallSpeed
     private var touchY = 0f
+
+    private val paddleSensitivity = 1.9f
+    private var lastFingerYDesign: Float? = null
 
     private var choreographer: Choreographer? = null
     private val frameCallback = object : Choreographer.FrameCallback {
@@ -104,7 +106,7 @@ class TennisGameView @JvmOverloads constructor(
 
     private fun updateDifficulty() {
         rallyCount++
-        currentSpeedMultiplier = min(1f + (rallyCount / 2) * 0.1f, maxSpeedMultiplier)
+        currentSpeedMultiplier = 1f + (rallyCount / 2) * 0.1f
         val dirX = if (ballDx > 0) 1f else -1f
         val dirY = if (ballDy > 0) 1f else -1f
         ballBaseSpeed = baseBallSpeed * currentSpeedMultiplier
@@ -116,10 +118,8 @@ class TennisGameView @JvmOverloads constructor(
         playerY = touchY.coerceIn(0f, designH - paddleHeight)
         val computerCenter = computerY + paddleHeight / 2
         val computerSpeed = baseComputerSpeed * (1 + (currentSpeedMultiplier - 1) * 0.5f)
-        when {
-            computerCenter < ballY - 10 -> computerY += computerSpeed
-            computerCenter > ballY + 10 -> computerY -= computerSpeed
-        }
+        val diff = ballY - computerCenter
+        computerY += diff.coerceIn(-computerSpeed, computerSpeed)
         computerY = computerY.coerceIn(0f, designH - paddleHeight)
 
         ballX += ballDx
@@ -225,28 +225,57 @@ class TennisGameView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                touchY = toDesignY(event.y) - paddleHeight / 2
-                touchY = touchY.coerceIn(0f, designH - paddleHeight)
+            MotionEvent.ACTION_DOWN -> {
+                lastFingerYDesign = toDesignY(event.y)
+                performTapToStart()
             }
-            MotionEvent.ACTION_UP -> {
-                if (!gameRunning && !gamePaused) {
-                    gameRunning = true
-                    gamePaused = false
-                    init()
-                } else if (gamePaused) {
-                    gamePaused = false
-                    if (playerScore >= winningScore || computerScore >= winningScore) {
-                        playerScore = 0
-                        computerScore = 0
-                        scoreListener?.onScoreChanged(0, 0)
-                        init()
-                    }
-                    gameRunning = true
+            MotionEvent.ACTION_MOVE -> {
+                val current = toDesignY(event.y)
+                lastFingerYDesign?.let { prev ->
+                    touchY += (current - prev) * paddleSensitivity
+                    touchY = touchY.coerceIn(0f, designH - paddleHeight)
                 }
+                lastFingerYDesign = current
             }
         }
         return true
+    }
+
+    override fun isWaitingForTap(): Boolean = !gameRunning
+
+    override fun startFromTap() = performTapToStart()
+
+    override fun setTouchYFromScreen(screenY: Float) {
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        val relativeY = screenY - loc[1]
+        val current = toDesignY(relativeY)
+        lastFingerYDesign?.let { prev ->
+            touchY += (current - prev) * paddleSensitivity
+            touchY = touchY.coerceIn(0f, designH - paddleHeight)
+        }
+        lastFingerYDesign = current
+    }
+
+    override fun onTouchEnd() {
+        lastFingerYDesign = null
+    }
+
+    private fun performTapToStart() {
+        if (!gameRunning && !gamePaused) {
+            gameRunning = true
+            gamePaused = false
+            init()
+        } else if (gamePaused) {
+            gamePaused = false
+            if (playerScore >= winningScore || computerScore >= winningScore) {
+                playerScore = 0
+                computerScore = 0
+                scoreListener?.onScoreChanged(0, 0)
+                init()
+            }
+            gameRunning = true
+        }
     }
 
     override fun onAttachedToWindow() {
