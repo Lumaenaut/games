@@ -158,17 +158,11 @@ function update() {
   playerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseY));
 
   // --- Computer AI ---
-  // Center Y of the computer paddle (for comparing to ball position).
+  // Track ball center with paddle center; move toward ball at capped speed (no dead zone, no overshoot).
   const computerPaddleCenter = computerY + PADDLE_HEIGHT / 2;
-  // Speed scales with difficulty: higher multiplier => faster reaction.
   const computerSpeed = BASE_COMPUTER_SPEED * (1 + (currentSpeedMultiplier - 1) * 0.5);
-  // Dead zone of 10px: only move if ball center is more than 10px above or below paddle center.
-  if (computerPaddleCenter < ball.y - 10) {
-    computerY += computerSpeed;   // Ball above => move paddle down.
-  } else if (computerPaddleCenter > ball.y + 10) {
-    computerY -= computerSpeed;   // Ball below => move paddle up.
-  }
-  // Clamp computer paddle to canvas (same idea as player).
+  const diff = ball.y - computerPaddleCenter;
+  computerY += Math.max(-computerSpeed, Math.min(computerSpeed, diff));
   computerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, computerY));
 
   // --- Ball movement ---

@@ -259,14 +259,11 @@ function update() {
   playerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseY));
   if (!gameRunning) return;
 
-  // Computer AI: move both paddles toward puck with speed that scales with difficulty.
+  // Computer AI: track puck with paddle center; move toward puck at capped speed (no dead zone, no overshoot).
   const computerPaddleCenter = computerY + PADDLE_HEIGHT / 2;
   const computerSpeed = BASE_COMPUTER_SPEED * (1 + (currentSpeedMultiplier - 1) * 0.5);
-  if (computerPaddleCenter < puck.y - 10) {
-    computerY += computerSpeed;
-  } else if (computerPaddleCenter > puck.y + 10) {
-    computerY -= computerSpeed;
-  }
+  const diff = puck.y - computerPaddleCenter;
+  computerY += Math.max(-computerSpeed, Math.min(computerSpeed, diff));
   computerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, computerY));
 
   puck.x += puck.dx;

@@ -223,11 +223,11 @@ function update() {
   // Player paddle follows mouse, clamped to canvas.
   playerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, mouseY));
 
-  // Computer AI: track ball when running, else center paddle.
+  // Computer AI: track ball when running, else center paddle; move toward target at capped speed (no overshoot).
   const computerTargetY = gameRunning ? (ball.y - PADDLE_HEIGHT / 2) : (canvas.height / 2 - PADDLE_HEIGHT / 2);
   const computerSpeed = gameRunning ? 7 : 2;
-  if (computerY < computerTargetY) computerY += computerSpeed;
-  if (computerY > computerTargetY) computerY -= computerSpeed;
+  const diff = computerTargetY - computerY;
+  computerY += Math.max(-computerSpeed, Math.min(computerSpeed, diff));
   computerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, computerY));
 
   if (!gameRunning) return;
