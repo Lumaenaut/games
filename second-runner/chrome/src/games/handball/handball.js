@@ -227,6 +227,7 @@ function update() {
   const computerTargetY = gameRunning ? (ball.y - PADDLE_HEIGHT / 2) : (canvas.height / 2 - PADDLE_HEIGHT / 2);
   const computerSpeed = gameRunning ? 7 : 2;
   const diff = computerTargetY - computerY;
+  // Move toward target by diff, clamped to ±computerSpeed (no dead zone, no overshoot); then clamp paddle to canvas.
   computerY += Math.max(-computerSpeed, Math.min(computerSpeed, diff));
   computerY = Math.max(0, Math.min(canvas.height - PADDLE_HEIGHT, computerY));
 
@@ -273,6 +274,7 @@ function update() {
     const bounceAngle = relativeIntersectY * 0.8;
     ball.dx = Math.abs(ball.dx);
     ball.dy = bounceAngle * ball.baseSpeed;
+    // Enforce minimum vertical speed so center hits don't produce a near-horizontal ball (avoids boring rallies and edge cases).
     if (Math.abs(ball.dy) < 1.5) {
       ball.dy = ball.dy > 0 ? 1.5 : -1.5;
     }
@@ -329,7 +331,7 @@ function startOrContinueGame() {
     if (playerScore >= winningScore || computerScore >= winningScore) {
 
       playerScore = 0;
-      computerScore = 0;
+      computerScore = 0;the 
       updateScore();
       turn = 'player';
       swapPending = false;

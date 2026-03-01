@@ -1,5 +1,6 @@
 <resources>
-    <string name="app_name">SECOND RUNNER</string>
+    <string name="app_name">Second Runner</string>
+    <string name="app_title">SECOND RUNNER</string>
     <string name="click_to_start">TOUCH TO START</string>
     <string name="handball">HANDBALL</string>
     <string name="hockey">HOCKEY</string>
