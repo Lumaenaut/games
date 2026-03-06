@@ -13,6 +13,11 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
+/**
+ * Tennis-style game: one ball, two paddles (player left, computer right). First to 5 points wins.
+ * Implements TapToStartGameView (tap to start/continue) and PaddleTouchableView (paddle follows
+ * touch Y from anywhere on screen). Uses a fixed design size (600×350) scaled to fit the view.
+ */
 class TennisGameView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -27,6 +32,7 @@ class TennisGameView @JvmOverloads constructor(
     private val dark = ContextCompat.getColor(context, R.color.dark)
     private val lightest = ContextCompat.getColor(context, R.color.lightest)
 
+    // --- Game state ---
     private var gameRunning = false
     private var gamePaused = false
     private var playerScore = 0
@@ -35,6 +41,8 @@ class TennisGameView @JvmOverloads constructor(
     private var rallyCount = 0
     private val baseBallSpeed = 9f
     private var currentSpeedMultiplier = 1f
+
+    // --- Design space and layout ---
     private val designW = 600f
     private val designH = 350f
     private val paddleWidth = 10f
@@ -46,8 +54,10 @@ class TennisGameView @JvmOverloads constructor(
     private var offsetY = 0f
     private fun sx(dx: Float) = offsetX + dx * scale
     private fun sy(dy: Float) = offsetY + dy * scale
+    /** Convert view Y to design Y (for touch). */
     private fun toDesignY(ey: Float) = (ey - offsetY) / scale
 
+    // --- Positions and motion (design space except where noted) ---
     private var playerY = 0f
     private var computerY = 0f
     private var ballX = 0f
@@ -56,9 +66,12 @@ class TennisGameView @JvmOverloads constructor(
     private var ballDy = 0f
     private val ballRadius = 5f
     private var ballBaseSpeed = baseBallSpeed
+    /** Target Y for player paddle (design); updated from touch. */
     private var touchY = 0f
 
+    /** Paddle movement = finger delta * this (makes dragging feel responsive). */
     private val paddleSensitivity = 1.9f
+    /** Last finger Y in design space; used to compute delta on MOVE. */
     private var lastFingerYDesign: Float? = null
 
     private var choreographer: Choreographer? = null
@@ -78,6 +91,7 @@ class TennisGameView @JvmOverloads constructor(
         init()
     }
 
+    /** Reset ball and paddle positions for a new point or match; does not change scores. */
     private fun init() {
         ballX = designW / 2f
         ballY = designH / 2f
@@ -91,6 +105,7 @@ class TennisGameView @JvmOverloads constructor(
         touchY = playerY
     }
 
+    /** After a goal: reset ball and speed, set game to paused (wait for tap to serve again). */
     private fun resetForNextMatch() {
         ballX = designW / 2f
         ballY = designH / 2f
@@ -103,6 +118,7 @@ class TennisGameView @JvmOverloads constructor(
         gamePaused = true
     }
 
+    /** Increase difficulty after each rally: speed multiplier and ball speed. */
     private fun updateDifficulty() {
         rallyCount++
         currentSpeedMultiplier = 1f + (rallyCount / 2) * 0.1f
@@ -114,7 +130,9 @@ class TennisGameView @JvmOverloads constructor(
     }
 
     private fun update() {
+        // Player paddle follows touchY (clamped to play area).
         playerY = touchY.coerceIn(0f, designH - paddleHeight)
+        // Computer: move paddle center toward ball Y, speed scales with difficulty.
         val computerCenter = computerY + paddleHeight / 2
         val computerSpeed = baseComputerSpeed * (1 + (currentSpeedMultiplier - 1) * 0.5f)
         val diff = ballY - computerCenter
@@ -124,6 +142,7 @@ class TennisGameView @JvmOverloads constructor(
         ballX += ballDx
         ballY += ballDy
         if (ballY - ballRadius < 0 || ballY + ballRadius > designH) ballDy *= -1
+        // Player paddle (left): bounce and deflect angle by hit position on paddle.
         if (ballX - ballRadius < 10 + paddleWidth && ballX + ballRadius > 10 &&
             ballY > playerY && ballY < playerY + paddleHeight) {
             val relY = (ballY - (playerY + paddleHeight / 2)) / (paddleHeight / 2)
@@ -133,6 +152,7 @@ class TennisGameView @JvmOverloads constructor(
             if (abs(ballDy) < 1.5f) ballDy = if (ballDy > 0) 1.5f else -1.5f
             updateDifficulty()
         }
+        // Computer paddle (right): same logic.
         if (ballX + ballRadius > designW - paddleWidth - 10 && ballX - ballRadius < designW - 10 &&
             ballY > computerY && ballY < computerY + paddleHeight) {
             val relY = (ballY - (computerY + paddleHeight / 2)) / (paddleHeight / 2)
@@ -142,6 +162,7 @@ class TennisGameView @JvmOverloads constructor(
             if (abs(ballDy) < 1.5f) ballDy = if (ballDy > 0) 1.5f else -1.5f
             updateDifficulty()
         }
+        // Goals: ball past left edge = computer scores; past right = player scores.
         when {
             ballX - ballRadius < 0 -> {
                 computerScore++
@@ -236,6 +257,7 @@ class TennisGameView @JvmOverloads constructor(
 
     override fun startFromTap() = performTapToStart()
 
+    /** Called by GameFragment when touch comes from root (screen Y); convert to design Y and update paddle. */
     override fun setTouchYFromScreen(screenY: Float) {
         val loc = IntArray(2)
         getLocationOnScreen(loc)

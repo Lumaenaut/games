@@ -13,6 +13,12 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
+/**
+ * Handball-style game: one ball, two paddles per side (back and forward). Only the paddle
+ * on the side the ball is moving toward can hit it; after a hit, "turn" swaps so the other
+ * side is active. Ball can only score when it passes the left edge (goal). First to 5 wins.
+ * Design size 400×350; in landscape we scale by height and center horizontally.
+ */
 class HandballGameView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -48,9 +54,13 @@ class HandballGameView @JvmOverloads constructor(
     private fun sx(dx: Float) = offsetX + dx * scale
     private fun sy(dy: Float) = offsetY + dy * scale
     private fun toDesignY(ey: Float) = (ey - offsetY) / scale
+    /** X of the back (left) paddle in design space. */
     private fun backX() = 10f
+    /** X of the forward (right) paddle in design space. */
     private fun forwardX() = 28f
-    private var turn = true // true = player
+    /** true = player's turn (player paddle is the one that can hit); false = computer's turn. */
+    private var turn = true
+    /** After a hit we set this; when ball crosses center we flip turn so the other side is active. */
     private var swapPending = false
 
     private var playerY = 0f
@@ -63,7 +73,6 @@ class HandballGameView @JvmOverloads constructor(
     private var ballBaseSpeed = baseBallSpeed
     private var touchY = 0f
 
-    /** Paddle movement = finger delta * sensitivity (no teleport, only move by delta). */
     private val paddleSensitivity = 1.9f
     private var lastFingerYDesign: Float? = null
 
@@ -80,12 +89,10 @@ class HandballGameView @JvmOverloads constructor(
         super.onSizeChanged(w, h, oldw, oldh)
         val isLandscape = w >= h
         if (isLandscape) {
-            // Landscape: play area height = display height; width from design aspect ratio (400/350).
             scale = h / designH
             offsetX = (w - designW * scale) / 2f
             offsetY = 0f
         } else {
-            // Portrait: fit play area inside view, centered.
             scale = min(w / designW, h / designH)
             offsetX = (w - designW * scale) / 2f
             offsetY = (h - designH * scale) / 2f
@@ -106,6 +113,7 @@ class HandballGameView @JvmOverloads constructor(
         touchY = playerY
     }
 
+    /** Reset ball and turn for next round; nextTurn = who gets to receive/serve. */
     private fun resetForNextRound(nextTurn: Boolean) {
         ballX = designW / 2f
         ballY = designH / 2f
@@ -132,7 +140,6 @@ class HandballGameView @JvmOverloads constructor(
 
     private fun update() {
         playerY = touchY.coerceIn(0f, designH - paddleH)
-        // CPU: track ball center with paddle center; move toward target at capped speed (no dead zone, no overshoot).
         val paddleCenterY = computerY + paddleH / 2f
         val targetCenterY = if (gameRunning) ballY else designH / 2f
         val computerSpeed = if (gameRunning) 6f else 2f

@@ -13,6 +13,11 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
+/**
+ * Hockey-style game: puck, four paddles (player goalie + forward, computer goalie + forward),
+ * and "bounce zones" at the top/bottom of each goal line—puck bounces off those instead of
+ * scoring. First to 5 goals wins. Implements TapToStartGameView and PaddleTouchableView.
+ */
 class HockeyGameView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -40,6 +45,7 @@ class HockeyGameView @JvmOverloads constructor(
     private val paddleWidth = 10f
     private val paddleHeight = 40f
     private val baseComputerSpeed = 4f
+    /** Height of the "bounce" area at top/bottom of each goal; puck bounces here instead of scoring. */
     private val bounceZoneTop = 100f
     private val bounceZoneBottom = 100f
 
@@ -63,6 +69,7 @@ class HockeyGameView @JvmOverloads constructor(
     private val paddleSensitivity = 1.9f
     private var lastFingerYDesign: Float? = null
 
+    /** Fixed X positions for the four paddles: player goalie (near left), player forward, computer forward, computer goalie (near right). */
     private var playerGoalieX = 40f
     private var playerForwardX = 0f
     private var computerGoalieX = 0f
@@ -125,6 +132,10 @@ class HockeyGameView @JvmOverloads constructor(
         puckDy = abs(puckDy) * dirY
     }
 
+    /**
+     * Check if puck hits the paddle at (px, py). If allowDeflection is true, bounce and update difficulty.
+     * Forward paddles only deflect when puck is moving toward them (player forward when puckDx < 0, etc.).
+     */
     private fun checkPaddleCollision(px: Float, py: Float, allowDeflection: Boolean): Boolean {
         if (puckX + puckRadius <= px || puckX - puckRadius >= px + paddleWidth ||
             puckY + puckRadius <= py || puckY - puckRadius >= py + paddleHeight) return false

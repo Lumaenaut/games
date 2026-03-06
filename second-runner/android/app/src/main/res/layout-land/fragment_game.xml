@@ -5,43 +5,43 @@
     android:id="@+id/gameScreenRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@color/darkest"
+    android:orientation="vertical"
     tools:context=".GameFragment">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <!-- Left column: scores and back button, aligned right, same-width score boxes -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:padding="16dp"
+            android:gravity="end"
             android:minWidth="120dp"
-            android:gravity="end">
+            android:orientation="vertical"
+            android:padding="16dp">
 
             <TextView
                 android:id="@+id/playerScore"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:minWidth="160dp"
                 android:background="@drawable/bg_score_box"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
+                android:fontFamily="monospace"
                 android:gravity="end"
+                android:letterSpacing="0.08"
+                android:minWidth="160dp"
+                android:paddingStart="16dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="10dp"
+                android:textAllCaps="true"
                 android:textColor="@color/darkest"
                 android:textSize="20sp"
-                android:fontFamily="monospace"
                 android:textStyle="bold"
-                android:letterSpacing="0.08"
-                android:textAllCaps="true"
                 tools:text="PLAYER: 0" />
 
             <TextView
@@ -49,19 +49,19 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:minWidth="160dp"
                 android:background="@drawable/bg_score_box"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
+                android:fontFamily="monospace"
                 android:gravity="end"
+                android:letterSpacing="0.08"
+                android:minWidth="160dp"
+                android:paddingStart="16dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="10dp"
+                android:textAllCaps="true"
                 android:textColor="@color/darkest"
                 android:textSize="20sp"
-                android:fontFamily="monospace"
                 android:textStyle="bold"
-                android:letterSpacing="0.08"
-                android:textAllCaps="true"
                 tools:text="COMPUTER: 0" />
 
             <View
@@ -71,14 +71,14 @@
 
             <Button
                 android:id="@+id/backButton"
+                style="@style/Widget.SecondRunner.GameButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minHeight="48dp"
                 android:padding="8dp"
                 android:text="@string/back_to_menu"
                 android:textAllCaps="true"
-                android:textSize="12sp"
-                style="@style/Widget.SecondRunner.GameButton" />
+                android:textSize="12sp" />
         </LinearLayout>
 
         <!-- Center: court and instructions (same width so text is centered under court) -->
@@ -98,11 +98,11 @@
                 android:id="@+id/instructions"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="12dp"
+                android:fontFamily="monospace"
                 android:gravity="center"
+                android:padding="12dp"
                 android:textColor="@color/light"
                 android:textSize="14sp"
-                android:fontFamily="monospace"
                 tools:text="MOVE FINGER UP/DOWN TO CONTROL THE PADDLE" />
         </LinearLayout>
     </LinearLayout>

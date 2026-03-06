@@ -15,7 +15,13 @@ import kotlin.math.min
 import kotlin.math.sign
 
 /**
- * Arcade-style animated background: ball bounces off paddles and blocks, with grid and border.
+ * Arcade-style animated background for the welcome screen. Draws a fixed-size "design" playfield
+ * (320×240) that is scaled to fit the view while keeping aspect ratio. Contains:
+ * - Two balls that bounce off walls, paddles, and blocks
+ * - Four auto-moving paddles (two inner, two outer)
+ * - Static blocks (rails and corner segments)
+ * - A grid and a moving "shimmer" line
+ * Physics and drawing run on the UI thread via Choreographer frame callbacks.
  */
 class GreetingBackgroundView @JvmOverloads constructor(
     context: Context,
@@ -23,47 +29,57 @@ class GreetingBackgroundView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
+    // ========== Design-space constants (logical units, not pixels) ==========
     private val designW = 320f
     private val designH = 240f
-    /** Standard thickness for paddles, blocks, rails (in design units). */
+    /** Standard thickness for paddles, blocks, and rails in design units. */
     private val strokeD = 3f
 
+    // ========== View size and scaling (updated in onSizeChanged) ==========
     private var bw = 0f
     private var bh = 0f
-    /** Uniform scale so aspect ratio is preserved; design (320×240) fits in view. */
+    /** Scale factor so the design rectangle fits in the view; aspect ratio preserved. */
     private var scale = 1f
+    /** Offset to center the scaled design in the view. */
     private var offsetX = 0f
     private var offsetY = 0f
 
-    /** Two balls in screen space (pixels); different speeds and directions for variety. */
+    // ========== Balls (position/velocity in screen pixels; radius in pixels) ==========
     private val ball = Ball(0f, 0f, 0.9f, 0.7f, 2f)
     private val ball2 = Ball(0f, 0f, -0.85f, -0.6f, 2f)
+    /** X positions of the left and right rails in design space. */
     private val railXLeft = 16f
     private val railXRight = designW - 16f
 
+    // ========== Paddles (x, y, w, h, vy in design space; positions set in onSizeChanged) ==========
     private val paddles = mutableListOf(
         Paddle(6f, 10f, strokeD, 14f, 0.42f),
         Paddle(0f, 0f, strokeD, 14f, -0.31f),
         Paddle(-28f, 10f, strokeD, 14f, 0.38f),
         Paddle(0f, 0f, strokeD, 14f, -0.27f)
     )
-    /** Outer paddle x in design space: halfway between rail and display edge (set in onSizeChanged). */
+    /** Outer paddle X in design space: between rail and screen edge (computed in onSizeChanged). */
     private var leftOuterPaddleX = -28f
     private var rightOuterPaddleX = designW + 28f
 
+    /** Static collision rectangles in design space (corners, rails, center blocks). */
     private val blocks = mutableListOf<RectF>()
+    /** Last frame time in ms, used to compute delta for physics. */
     private var lastFrameTime = 0L
 
+    // ========== Drawing ==========
     private val paint = Paint().apply { isAntiAlias = false }
     private val darkest: Int
     private val dark: Int
     private val light: Int
     private val lightest: Int
 
+    // ========== Animation loop (Choreographer = vsync-aligned frames) ==========
     private var choreographer: Choreographer? = null
     private val frameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             val t = frameTimeNanos / 1_000_000
+            // dt in "steps" of ~16.67ms (60fps); clamped to avoid huge jumps or zero.
             val dt = min(1.5f, max(0.016f, (t - lastFrameTime) / 16.67f))
             lastFrameTime = t
             stepPhysics(dt)
@@ -72,15 +88,16 @@ class GreetingBackgroundView @JvmOverloads constructor(
         }
     }
 
-    init {  
+    init {
         darkest = ContextCompat.getColor(context, R.color.darkest)
         dark = ContextCompat.getColor(context, R.color.dark)
         light = ContextCompat.getColor(context, R.color.light)
         lightest = ContextCompat.getColor(context, R.color.lightest)
     }
 
-    /** Design coords -> screen coords (preserves aspect). */
+    /** Convert design X to screen X. */
     private fun sx(dx: Float) = offsetX + dx * scale
+    /** Convert design Y to screen Y. */
     private fun sy(dy: Float) = offsetY + dy * scale
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -90,6 +107,7 @@ class GreetingBackgroundView @JvmOverloads constructor(
         scale = min(bw / designW, bh / designH)
         offsetX = (bw - designW * scale) / 2f
         offsetY = (bh - designH * scale) / 2f
+        // Place and scale balls in screen space.
         ball.r = 2f * scale
         ball.x = offsetX + designW * 0.25f * scale
         ball.y = offsetY + designH * 0.35f * scale
@@ -100,8 +118,10 @@ class GreetingBackgroundView @JvmOverloads constructor(
         ball2.y = offsetY + designH * 0.6f * scale
         ball2.vx = -0.85f * scale
         ball2.vy = -0.6f * scale
+        // Outer paddles: X is halfway between rail and visible edge (in design coords).
         leftOuterPaddleX = ((-offsetX / scale) + railXLeft) / 2f
         rightOuterPaddleX = (railXRight + (bw - offsetX) / scale) / 2f
+        // Reset paddle positions in design space.
         paddles[0].x = 6f
         paddles[0].y = 18f
         paddles[0].w = strokeD
@@ -125,20 +145,17 @@ class GreetingBackgroundView @JvmOverloads constructor(
         buildBlocks()
     }
 
+    /** Fill [blocks] with rectangles in design space: corners, vertical rails, center horizontals. */
     private fun buildBlocks() {
         blocks.clear()
         val railH = designH - 18f - 18f
         val t = strokeD
-        // All in design space (0..designW, 0..designH)
-        // Corner blocks (length 12, thickness t)
         blocks.add(RectF(10f, 8f, 10f + 12f, 8f + t))
         blocks.add(RectF(designW - (10f + 12f), 8f, designW - 10f, 8f + t))
         blocks.add(RectF(10f, designH - (8f + t), 10f + 12f, designH - 8f))
         blocks.add(RectF(designW - (10f + 12f), designH - (8f + t), designW - 10f, designH - 8f))
-        // Vertical rails (thickness t)
         blocks.add(RectF(16f, 18f, 16f + t, 18f + railH))
         blocks.add(RectF(designW - (16f + t), 18f, designW - 16f, 18f + railH))
-        // Horizontal center blocks (length 16, thickness t)
         blocks.add(RectF(designW * 0.35f, 14f, designW * 0.35f + 16f, 14f + t))
         blocks.add(RectF(designW * 0.55f, designH - (14f + t), designW * 0.55f + 16f, designH - 14f))
     }
@@ -156,6 +173,10 @@ class GreetingBackgroundView @JvmOverloads constructor(
         choreographer = null
     }
 
+    /**
+     * Advance physics by dt (in 16.67ms units). Move paddles (bounce off top/bottom),
+     * move balls (bounce off walls, paddles, blocks). Ball positions are in screen space.
+     */
     private fun stepPhysics(dt: Float) {
         paddles[1].x = designW - (strokeD + 5f)
         paddles[2].x = leftOuterPaddleX
@@ -177,6 +198,11 @@ class GreetingBackgroundView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * If ball [b] intersects the rectangle (rx,ry,rw,rh) in screen space, reflect velocity
+     * (horizontal or vertical based on which side is closer), nudge ball out, and optionally
+     * speed up slightly (speedup factor).
+     */
     private fun bounceOffRect(b: Ball, rx: Float, ry: Float, rw: Float, rh: Float, speedup: Float) {
         if (!circleIntersectsRect(b, rx, ry, rw, rh)) return
         val closestX = clamp(b.x, rx, rx + rw)
@@ -209,7 +235,7 @@ class GreetingBackgroundView @JvmOverloads constructor(
         paint.color = darkest
         canvas.drawRect(0f, 0f, bw, bh, paint)
         val gridStepD = 10f
-        val lineD = 0.4f  // Grid line thickness in design units (thinner)
+        val lineD = 0.4f
         paint.color = dark
         var dx = (floor((-offsetX / scale) / gridStepD) * gridStepD).toFloat()
         while (dx <= (bw - offsetX) / scale + gridStepD) {
