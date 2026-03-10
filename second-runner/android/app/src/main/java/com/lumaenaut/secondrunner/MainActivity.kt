@@ -6,7 +6,7 @@ import com.lumaenaut.secondrunner.databinding.ActivityMainBinding
 
 /**
  * Main entry point of the app. This Activity hosts the entire UI as fragments;
- * it does not manage screens itself—Navigation Component and the nav graph do that.
+ * it does not manage screens itself — Navigation Component and the nav graph do that.
  * The activity's only job is to inflate the root layout (which contains a NavHostFragment)
  * and set it as the content view.
  */
